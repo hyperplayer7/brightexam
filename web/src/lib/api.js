@@ -71,6 +71,10 @@ export function getExpense(id) {
   return request(`/api/expenses/${id}`);
 }
 
+export function getExpenseAuditLogs(id) {
+  return request(`/api/expenses/${id}/audit_logs`);
+}
+
 export function createExpense(payload) {
   return request("/api/expenses", {
     method: "POST",

@@ -9,6 +9,7 @@ Rails.application.routes.draw do
         post :submit
         post :approve
         post :reject
+        get :audit_logs
       end
     end
   end
