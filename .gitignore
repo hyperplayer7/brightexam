@@ -1,0 +1,84 @@
+# Monorepo ignores
+# - api/: Ruby on Rails API
+# - web/: Next.js frontend
+
+### Environment files
+.env
+.env.*
+!.env.example
+api/.env
+api/.env.*
+api/.env*.local
+web/.env
+web/.env.*
+web/.env*.local
+
+### Rails (api/)
+api/.bundle/
+api/log/*
+api/tmp/*
+api/tmp/pids/*
+api/tmp/cache/*
+api/tmp/sockets/*
+api/tmp/storage/*
+api/storage/*
+api/public/assets
+api/public/packs
+api/public/packs-test
+api/coverage/
+api/.byebug_history
+api/.rspec_status
+api/config/master.key
+api/db/*.sqlite3
+api/db/*.sqlite3-*
+
+# Keep expected Rails keepfiles
+!api/log/.keep
+!api/tmp/.keep
+!api/tmp/pids/.keep
+!api/tmp/storage/.keep
+!api/storage/.keep
+
+### RuboCop / lint cache
+.rubocop-https---*
+.rubocop_cache/
+api/.rubocop_cache/
+
+### Next.js / Node (web/)
+node_modules/
+web/node_modules/
+web/.next/
+web/out/
+web/.turbo/
+web/.npm/
+web/npm-debug.log*
+web/yarn-debug.log*
+web/yarn-error.log*
+web/pnpm-debug.log*
+web/.eslintcache
+web/coverage/
+
+### Build artifacts and generic logs
+dist/
+build/
+*.log
+log/
+coverage/
+tmp/*
+cookies.txt
+*.cookies
+
+### macOS and editor/system files
+.DS_Store
+**/.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+
+### Keep lockfiles committed
+!Gemfile.lock
+!package-lock.json
+!yarn.lock
+!web/package-lock.json
+!web/yarn.lock
