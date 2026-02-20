@@ -23,5 +23,4 @@ group :development, :test do
   gem "rspec-rails", "~> 7.1"
   gem "pundit-matchers"
   gem "dotenv-rails"
-
 end
