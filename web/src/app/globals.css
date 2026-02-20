@@ -3,11 +3,112 @@
 @tailwind utilities;
 
 :root {
+  --bg: 248 250 252;
+  --surface: 255 255 255;
+  --text: 15 23 42;
+  --muted: 71 85 105;
+  --border: 203 213 225;
+  --primary: 8 145 178;
+  --primary-foreground: 255 255 255;
+  --accent: 226 232 240;
+  --accent-foreground: 30 41 59;
+  --badge-drafted: 226 232 240;
+  --badge-drafted-foreground: 51 65 85;
+  --badge-submitted: 254 243 199;
+  --badge-submitted-foreground: 146 64 14;
+  --badge-approved: 209 250 229;
+  --badge-approved-foreground: 6 95 70;
+  --badge-rejected: 254 226 226;
+  --badge-rejected-foreground: 153 27 27;
+  color-scheme: light;
+}
+
+:root[data-theme="light"] {
+  --bg: 248 250 252;
+  --surface: 255 255 255;
+  --text: 15 23 42;
+  --muted: 71 85 105;
+  --border: 203 213 225;
+  --primary: 8 145 178;
+  --primary-foreground: 255 255 255;
+  --accent: 226 232 240;
+  --accent-foreground: 30 41 59;
+  --badge-drafted: 226 232 240;
+  --badge-drafted-foreground: 51 65 85;
+  --badge-submitted: 254 243 199;
+  --badge-submitted-foreground: 146 64 14;
+  --badge-approved: 209 250 229;
+  --badge-approved-foreground: 6 95 70;
+  --badge-rejected: 254 226 226;
+  --badge-rejected-foreground: 153 27 27;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: 15 23 42;
+  --surface: 30 41 59;
+  --text: 241 245 249;
+  --muted: 148 163 184;
+  --border: 71 85 105;
+  --primary: 56 189 248;
+  --primary-foreground: 2 6 23;
+  --accent: 51 65 85;
+  --accent-foreground: 226 232 240;
+  --badge-drafted: 71 85 105;
+  --badge-drafted-foreground: 241 245 249;
+  --badge-submitted: 113 63 18;
+  --badge-submitted-foreground: 253 230 138;
+  --badge-approved: 6 78 59;
+  --badge-approved-foreground: 209 250 229;
+  --badge-rejected: 127 29 29;
+  --badge-rejected-foreground: 254 226 226;
+  color-scheme: dark;
+}
+
+:root[data-theme="stephens"] {
+  --bg: 250 247 255;
+  --surface: 255 255 255;
+  --text: 59 34 113;
+  --muted: 107 83 161;
+  --border: 221 214 254;
+  --primary: 107 33 168;
+  --primary-foreground: 255 255 255;
+  --accent: 233 213 255;
+  --accent-foreground: 76 29 149;
+  --badge-drafted: 237 233 254;
+  --badge-drafted-foreground: 76 29 149;
+  --badge-submitted: 254 243 199;
+  --badge-submitted-foreground: 146 64 14;
+  --badge-approved: 221 214 254;
+  --badge-approved-foreground: 91 33 182;
+  --badge-rejected: 254 226 226;
+  --badge-rejected-foreground: 153 27 27;
+  color-scheme: light;
+}
+
+:root[data-theme="up"] {
+  --bg: 251 247 239;
+  --surface: 255 255 250;
+  --text: 72 22 36;
+  --muted: 122 84 55;
+  --border: 229 215 183;
+  --primary: 128 0 32;
+  --primary-foreground: 255 255 255;
+  --accent: 35 120 65;
+  --accent-foreground: 255 255 255;
+  --badge-drafted: 248 234 192;
+  --badge-drafted-foreground: 146 64 14;
+  --badge-submitted: 252 211 77;
+  --badge-submitted-foreground: 120 53 15;
+  --badge-approved: 187 247 208;
+  --badge-approved-foreground: 20 83 45;
+  --badge-rejected: 254 202 202;
+  --badge-rejected-foreground: 127 29 29;
   color-scheme: light;
 }
 
 body {
-  @apply bg-slate-50 text-slate-900 antialiased;
+  @apply bg-background text-text antialiased;
 }
 
 main {

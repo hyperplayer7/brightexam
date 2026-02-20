@@ -130,22 +130,22 @@ export default function EditExpensePage() {
     <div className="space-y-6">
       <TopNav user={user} />
 
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
         <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-slate-900">Edit Expense #{expenseId}</h1>
-          <Link href={`/expenses/${expenseId}`} className="text-sm font-medium text-brand-700 hover:text-brand-600">
+          <h1 className="text-2xl font-bold text-text">Edit Expense #{expenseId}</h1>
+          <Link href={`/expenses/${expenseId}`} className="text-sm font-medium text-primary hover:text-primary/80">
             Back
           </Link>
         </div>
 
-        {loading ? <p className="text-sm text-slate-600">Loading expense...</p> : null}
-        {error ? <p className="mb-4 text-sm font-medium text-rose-700">{error}</p> : null}
+        {loading ? <p className="text-sm text-muted">Loading expense...</p> : null}
+        {error ? <p className="mb-4 text-sm font-medium text-badge-rejected-foreground">{error}</p> : null}
 
         {!loading && !canEdit ? (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          <div className="rounded-lg border border-badge-submitted bg-badge-submitted/40 p-4 text-sm text-badge-submitted-foreground">
             Draft expenses owned by you are the only records that can be edited.
             <div className="mt-2">
-              <Link href={`/expenses/${expenseId}`} className="font-medium text-amber-900 underline">
+              <Link href={`/expenses/${expenseId}`} className="font-medium text-badge-submitted-foreground underline">
                 Return to expense detail
               </Link>
             </div>

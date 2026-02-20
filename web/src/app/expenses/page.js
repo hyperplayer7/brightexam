@@ -100,63 +100,79 @@ export default function ExpensesPage() {
     <div className="space-y-6">
       <TopNav user={user} />
 
-      <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Expenses</h1>
-          <p className="text-sm text-slate-600">Filter and review submitted and draft expenses.</p>
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <div className="flex items-end gap-3">
-          <div className="w-64">
-            <Input
-              id="search"
-              label="Search"
-              placeholder="Merchant or description"
-              value={searchTerm}
-              onChange={handleSearchChange}
-            />
+      <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
+        <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
+          <div>
+            <h1 className="text-2xl font-bold text-text">Expenses</h1>
+            <p className="text-sm text-muted">Filter and review submitted and draft expenses.</p>
           </div>
 
-          <div className="w-44">
-            <Input
-              as="select"
-              id="status-filter"
-              label="Status"
-              value={statusFilter}
-              onChange={handleStatusChange}
-            >
-              {STATUS_OPTIONS.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </Input>
-          </div>
+          <div className="flex flex-col gap-1 lg:items-end">
+            <div className="flex flex-wrap items-end gap-3 lg:justify-end">
+              <div className="w-full sm:w-64">
+                <div className="mb-1 flex items-center justify-between">
+                  <label htmlFor="search" className="text-sm font-medium text-text">
+                    Search
+                  </label>
+                  <span className="text-[11px] text-muted">current page only</span>
+                </div>
+                <Input
+                  id="search"
+                  placeholder="Merchant or description"
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                />
+              </div>
 
-          {searchTerm ? (
-            <Button variant="secondary" onClick={clearSearch}>
-              Clear
-            </Button>
-          ) : null}
+              <div className="w-full sm:w-44">
+                <Input
+                  as="select"
+                  id="status-filter"
+                  label="Status"
+                  value={statusFilter}
+                  onChange={handleStatusChange}
+                >
+                  {STATUS_OPTIONS.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </Input>
+              </div>
 
-          {user?.role === "employee" ? (
-            <Link href="/expenses/new">
-              <Button>New Expense</Button>
-            </Link>
-          ) : null}
+              {searchTerm ? (
+                <div className="w-full sm:w-auto">
+                  <span className="mb-1 block h-5 text-xs font-semibold uppercase tracking-wide opacity-0">
+                    Clear
+                  </span>
+                  <Button variant="secondary" className="w-full sm:w-auto" onClick={clearSearch}>
+                    Clear
+                  </Button>
+                </div>
+              ) : null}
+
+              {user?.role === "employee" ? (
+                <div className="w-full sm:w-auto">
+                  <span className="mb-1 block h-5 text-xs font-semibold uppercase tracking-wide opacity-0">
+                    New
+                  </span>
+                  <Link href="/expenses/new">
+                    <Button className="w-full sm:w-auto">New Expense</Button>
+                  </Link>
+                </div>
+              ) : null}
+            </div>
           </div>
-          <p className="text-xs text-slate-500">Filtering current page only</p>
         </div>
       </div>
 
-      {loading ? <p className="text-sm text-slate-600">Loading expenses...</p> : null}
-      {error ? <p className="text-sm font-medium text-rose-700">{error}</p> : null}
+      {loading ? <p className="text-sm text-muted">Loading expenses...</p> : null}
+      {error ? <p className="text-sm font-medium text-badge-rejected-foreground">{error}</p> : null}
 
       {!loading && !error ? (
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-          <table className="w-full min-w-[760px] divide-y divide-slate-200 text-sm">
-            <thead className="bg-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+        <div className="overflow-x-auto rounded-xl border border-border bg-surface shadow-sm">
+          <table className="w-full min-w-[760px] divide-y divide-border text-sm">
+            <thead className="bg-accent/25 text-left text-xs font-semibold uppercase tracking-wide text-muted">
               <tr>
                 <th className="px-4 py-3">Merchant</th>
                 <th className="px-4 py-3">Employee</th>
@@ -166,28 +182,28 @@ export default function ExpensesPage() {
                 <th className="px-4 py-3">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-border/60">
               {filteredExpenses.map((expense) => (
-                <tr key={expense.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 text-slate-800">
+                <tr key={expense.id} className="hover:bg-accent/20">
+                  <td className="px-4 py-3 text-text">
                     {expense.merchant || "-"}
                   </td>
-                  <td className="px-4 py-3 text-slate-700">
+                  <td className="px-4 py-3 text-text">
                     {expense.user?.email || "-"}
                   </td>
-                  <td className="px-4 py-3 text-slate-800">
+                  <td className="px-4 py-3 text-text">
                     {expense.currency} {(expense.amount_cents / 100).toFixed(2)}
                   </td>
-                  <td className="px-4 py-3 text-slate-700">{formatDate(expense.incurred_on)}</td>
+                  <td className="px-4 py-3 text-text">{formatDate(expense.incurred_on)}</td>
                   <td className="px-4 py-3">
                     <Badge status={expense.status}>{expense.status}</Badge>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
-                      <Link className="font-medium text-brand-700 hover:text-brand-600" href={`/expenses/${expense.id}`}>
+                      <Link className="font-medium text-primary hover:text-primary/80" href={`/expenses/${expense.id}`}>
                         View
                       </Link>
-                      <Link className="font-medium text-slate-700 hover:text-slate-600" href={`/expenses/${expense.id}#audit`}>
+                      <Link className="font-medium text-text hover:text-muted" href={`/expenses/${expense.id}#audit`}>
                         Audit Logs
                       </Link>
                     </div>
@@ -197,7 +213,7 @@ export default function ExpensesPage() {
 
               {filteredExpenses.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-6 text-center text-slate-500" colSpan={6}>
+                  <td className="px-4 py-6 text-center text-muted" colSpan={6}>
                     {searchTerm ? "No expenses match your search on this page." : "No expenses found."}
                   </td>
                 </tr>
@@ -208,8 +224,8 @@ export default function ExpensesPage() {
       ) : null}
 
       {pagination ? (
-        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 text-sm shadow-sm">
-          <p className="text-slate-600">
+        <div className="flex items-center justify-between rounded-xl border border-border bg-surface p-4 text-sm shadow-sm">
+          <p className="text-muted">
             Page {pagination.page} of {pagination.pages} • Total {pagination.count}
           </p>
           <div className="flex gap-2">

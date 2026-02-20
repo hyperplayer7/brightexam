@@ -42,11 +42,11 @@ export default function ExpenseDetailPage() {
 
   function renderMetadata(metadata) {
     if (!metadata || (typeof metadata === "object" && Object.keys(metadata).length === 0)) {
-      return <span className="text-slate-500">-</span>;
+      return <span className="text-muted">-</span>;
     }
 
     return (
-      <pre className="overflow-x-auto rounded bg-slate-100 p-2 text-xs text-slate-700">
+      <pre className="overflow-x-auto rounded bg-accent/25 p-2 text-xs text-text">
         {JSON.stringify(metadata, null, 2)}
       </pre>
     );
@@ -158,20 +158,20 @@ export default function ExpenseDetailPage() {
     <div className="space-y-6">
       <TopNav user={user} />
 
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-slate-900">Expense #{expenseId}</h1>
-          <Link href="/expenses" className="text-sm font-medium text-brand-700 hover:text-brand-600">
+          <h1 className="text-2xl font-bold text-text">Expense #{expenseId}</h1>
+          <Link href="/expenses" className="text-sm font-medium text-primary hover:text-primary/80">
             Back
           </Link>
         </div>
 
-        {loading ? <p className="text-sm text-slate-600">Loading expense...</p> : null}
-        {error ? <p className="mb-4 text-sm font-medium text-rose-700">{error}</p> : null}
+        {loading ? <p className="text-sm text-muted">Loading expense...</p> : null}
+        {error ? <p className="mb-4 text-sm font-medium text-badge-rejected-foreground">{error}</p> : null}
 
         {!loading && expense ? (
           <div className="space-y-4">
-            <div className="grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
+            <div className="grid gap-3 text-sm text-text sm:grid-cols-2">
               <p><span className="font-semibold">Employee:</span> {expense.user?.email || "-"}</p>
               <p><span className="font-semibold">Reviewer:</span> {expense.reviewer?.email || "-"}</p>
               <p><span className="font-semibold">Merchant:</span> {expense.merchant}</p>
@@ -181,9 +181,9 @@ export default function ExpenseDetailPage() {
               <p><span className="font-semibold">Submitted at:</span> {formatDate(expense.submitted_at)}</p>
               <p><span className="font-semibold">Reviewed at:</span> {formatDate(expense.reviewed_at)}</p>
             </div>
-            <p className="text-sm text-slate-700"><span className="font-semibold">Description:</span> {expense.description}</p>
+            <p className="text-sm text-text"><span className="font-semibold">Description:</span> {expense.description}</p>
             {expense.rejection_reason ? (
-              <p className="text-sm text-rose-700"><span className="font-semibold">Rejection reason:</span> {expense.rejection_reason}</p>
+              <p className="text-sm text-badge-rejected-foreground"><span className="font-semibold">Rejection reason:</span> {expense.rejection_reason}</p>
             ) : null}
 
             <div className="flex flex-wrap gap-2 pt-2">
@@ -208,7 +208,7 @@ export default function ExpenseDetailPage() {
             </div>
 
             {showReject ? (
-              <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <div className="mt-3 rounded-lg border border-border bg-accent/20 p-3">
                 <Input
                   id="rejection_reason"
                   label="Rejection reason"
@@ -229,29 +229,29 @@ export default function ExpenseDetailPage() {
         ) : null}
       </div>
 
-      <div id="audit" className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-3 text-xl font-semibold text-slate-900">Activity / Audit Logs</h2>
-        {auditLoading ? <p className="text-sm text-slate-600">Loading audit logs...</p> : null}
-        {auditError ? <p className="mb-4 text-sm font-medium text-rose-700">{auditError}</p> : null}
+      <div id="audit" className="rounded-xl border border-border bg-surface p-6 shadow-sm">
+        <h2 className="mb-3 text-xl font-semibold text-text">Activity / Audit Logs</h2>
+        {auditLoading ? <p className="text-sm text-muted">Loading audit logs...</p> : null}
+        {auditError ? <p className="mb-4 text-sm font-medium text-badge-rejected-foreground">{auditError}</p> : null}
 
         {!auditLoading && !auditError ? (
           <div className="space-y-3">
             {auditLogs.map((log) => (
-              <div key={log.id} className="rounded-lg border border-slate-200 p-3">
-                <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+              <div key={log.id} className="rounded-lg border border-border p-3">
+                <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-muted">
                   <span>{formatDate(log.created_at)}</span>
-                  <span className="rounded bg-slate-100 px-2 py-1 font-semibold text-slate-700">{log.action}</span>
+                  <span className="rounded bg-accent/30 px-2 py-1 font-semibold text-text">{log.action}</span>
                   <span>
                     Actor: {log.actor?.email || "-"} ({log.actor?.role || "-"})
                   </span>
                 </div>
-                <p className="mb-2 text-sm text-slate-700">
+                <p className="mb-2 text-sm text-text">
                   <span className="font-semibold">Status change:</span> {log.from_status || "-"} → {log.to_status || "-"}
                 </p>
                 {renderMetadata(log.metadata)}
               </div>
             ))}
-            {auditLogs.length === 0 ? <p className="text-sm text-slate-500">No audit logs yet.</p> : null}
+            {auditLogs.length === 0 ? <p className="text-sm text-muted">No audit logs yet.</p> : null}
           </div>
         ) : null}
       </div>

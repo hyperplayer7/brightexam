@@ -1,4 +1,5 @@
 import "./globals.css";
+import ThemeProvider from "../components/theme/ThemeProvider";
 
 export const metadata = {
   title: "Expense Tracker",
@@ -7,9 +8,11 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body>
-        <main>{children}</main>
+    <html lang="en" data-theme="light">
+      <body className="min-h-screen bg-background text-text antialiased">
+        <ThemeProvider>
+          <main>{children}</main>
+        </ThemeProvider>
       </body>
     </html>
   );

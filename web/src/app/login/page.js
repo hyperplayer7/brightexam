@@ -50,9 +50,9 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="mx-auto max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h1 className="mb-1 text-2xl font-bold text-slate-900">Sign in</h1>
-      <p className="mb-6 text-sm text-slate-600">Use your Expense Tracker credentials.</p>
+    <div className="mx-auto max-w-md rounded-xl border border-border bg-surface p-6 shadow-sm">
+      <h1 className="mb-1 text-2xl font-bold text-text">Sign in</h1>
+      <p className="mb-6 text-sm text-muted">Use your Expense Tracker credentials.</p>
 
       <form className="space-y-4" onSubmit={handleSubmit}>
         <Input
@@ -73,7 +73,7 @@ export default function LoginPage() {
           onChange={(event) => setPassword(event.target.value)}
         />
 
-        {error ? <p className="text-sm font-medium text-rose-700">{error}</p> : null}
+        {error ? <p className="text-sm font-medium text-badge-rejected-foreground">{error}</p> : null}
 
         <Button type="submit" disabled={isSubmitting} className="w-full">
           {isSubmitting ? "Signing in..." : "Sign in"}

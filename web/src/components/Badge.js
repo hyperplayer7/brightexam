@@ -1,12 +1,12 @@
 const STATUS_STYLES = {
-  drafted: "bg-slate-100 text-slate-700",
-  submitted: "bg-amber-100 text-amber-800",
-  approved: "bg-emerald-100 text-emerald-800",
-  rejected: "bg-rose-100 text-rose-800"
+  drafted: "bg-badge-drafted text-badge-drafted-foreground",
+  submitted: "bg-badge-submitted text-badge-submitted-foreground",
+  approved: "bg-badge-approved text-badge-approved-foreground",
+  rejected: "bg-badge-rejected text-badge-rejected-foreground"
 };
 
 export default function Badge({ children, status }) {
-  const colorClassName = STATUS_STYLES[status] || "bg-slate-100 text-slate-700";
+  const colorClassName = STATUS_STYLES[status] || "bg-badge-drafted text-badge-drafted-foreground";
 
   return (
     <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${colorClassName}`}>

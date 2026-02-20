@@ -105,77 +105,77 @@ export default function NewExpensePage() {
     <div className="space-y-6">
       <TopNav user={user} />
 
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
         <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-slate-900">New Expense</h1>
-          <Link href="/expenses" className="text-sm font-medium text-brand-700 hover:text-brand-600">
+          <h1 className="text-2xl font-bold text-text">New Expense</h1>
+          <Link href="/expenses" className="text-sm font-medium text-primary hover:text-primary/80">
             Back to expenses
           </Link>
         </div>
 
         {!isEmployee && user ? (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          <div className="rounded-lg border border-badge-submitted bg-badge-submitted/40 p-4 text-sm text-badge-submitted-foreground">
             Forbidden: reviewers cannot create expenses.
             <div className="mt-2">
-              <Link href="/expenses" className="font-medium text-amber-900 underline">
+              <Link href="/expenses" className="font-medium text-badge-submitted-foreground underline">
                 Return to expenses
               </Link>
             </div>
           </div>
         ) : null}
 
-        {(!user || isEmployee) ? (
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <Input
-            id="amount"
-            label="Amount"
-            type="number"
-            step="0.01"
-            min="0"
-            required
-            value={form.amount}
-            onChange={(event) => setField("amount", event.target.value)}
-          />
+        {!user || isEmployee ? (
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            <Input
+              id="amount"
+              label="Amount"
+              type="number"
+              step="0.01"
+              min="0"
+              required
+              value={form.amount}
+              onChange={(event) => setField("amount", event.target.value)}
+            />
 
-          <Input as="select" id="currency" label="Currency" required value={form.currency} onChange={(event) => setField("currency", event.target.value)}>
-            {CURRENCY_OPTIONS.map((currency) => (
-              <option key={currency} value={currency}>
-                {currency}
-              </option>
-            ))}
-          </Input>
+            <Input as="select" id="currency" label="Currency" required value={form.currency} onChange={(event) => setField("currency", event.target.value)}>
+              {CURRENCY_OPTIONS.map((currency) => (
+                <option key={currency} value={currency}>
+                  {currency}
+                </option>
+              ))}
+            </Input>
 
-          <Input
-            id="merchant"
-            label="Merchant"
-            required
-            value={form.merchant}
-            onChange={(event) => setField("merchant", event.target.value)}
-          />
+            <Input
+              id="merchant"
+              label="Merchant"
+              required
+              value={form.merchant}
+              onChange={(event) => setField("merchant", event.target.value)}
+            />
 
-          <Input
-            id="description"
-            label="Description"
-            required
-            value={form.description}
-            onChange={(event) => setField("description", event.target.value)}
-          />
+            <Input
+              id="description"
+              label="Description"
+              required
+              value={form.description}
+              onChange={(event) => setField("description", event.target.value)}
+            />
 
-          <Input
-            id="incurred_on"
-            label="Incurred on"
-            type="date"
-            required
-            value={form.incurred_on}
-            onChange={(event) => setField("incurred_on", event.target.value)}
-          />
+            <Input
+              id="incurred_on"
+              label="Incurred on"
+              type="date"
+              required
+              value={form.incurred_on}
+              onChange={(event) => setField("incurred_on", event.target.value)}
+            />
 
-          {error ? <p className="text-sm font-medium text-rose-700">{error}</p> : null}
+            {error ? <p className="text-sm font-medium text-badge-rejected-foreground">{error}</p> : null}
 
-          <Button type="submit" disabled={isSubmitting || !isEmployee}>
-            {isSubmitting ? "Creating..." : "Create Draft"}
-          </Button>
-        </form>
+            <Button type="submit" disabled={isSubmitting || !isEmployee}>
+              {isSubmitting ? "Creating..." : "Create Draft"}
+            </Button>
+          </form>
         ) : null}
       </div>
     </div>
