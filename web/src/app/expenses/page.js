@@ -8,7 +8,7 @@ import Button from "../../components/Button";
 import Input from "../../components/Input";
 import TopNav from "../../components/TopNav";
 import { getCurrentUser } from "../../lib/auth";
-import { listExpenses } from "../../lib/api";
+import { getExpensesSummary, listExpenses } from "../../lib/api";
 
 function formatDate(value) {
   if (!value) return "-";
@@ -17,12 +17,29 @@ function formatDate(value) {
   return date.toLocaleDateString();
 }
 
+function formatCount(value) {
+  return new Intl.NumberFormat("en-US").format(Number(value || 0));
+}
+
+function formatCents(value) {
+  const amount = Number(value || 0) / 100;
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(amount);
+}
+
+function formatMoney(currency, amountCents) {
+  return `${currency || ""} ${formatCents(amountCents)}`.trim();
+}
+
 const STATUS_OPTIONS = ["all", "drafted", "submitted", "approved", "rejected"];
 
 export default function ExpensesPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [expenses, setExpenses] = useState([]);
+  const [summary, setSummary] = useState(null);
   const [pagination, setPagination] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
@@ -39,15 +56,25 @@ export default function ExpensesPage() {
         setError("");
         const normalizedStatus = statusFilter?.trim?.() || "";
 
-        const currentUser = await getCurrentUser();
-        const expenseResponse = await listExpenses({
-          status: normalizedStatus === "all" || normalizedStatus === "" ? undefined : normalizedStatus,
-          page
-        });
+        const [currentUser, expenseResponse] = await Promise.all([
+          getCurrentUser(),
+          listExpenses({
+            status: normalizedStatus === "all" || normalizedStatus === "" ? undefined : normalizedStatus,
+            page
+          })
+        ]);
+
+        let summaryResponse = null;
+        try {
+          summaryResponse = await getExpensesSummary();
+        } catch (_summaryError) {
+          summaryResponse = null;
+        }
 
         if (!cancelled) {
           setUser(currentUser);
           setExpenses(expenseResponse?.data || []);
+          setSummary(summaryResponse?.data || null);
           setPagination(expenseResponse?.pagination || null);
         }
       } catch (err) {
@@ -88,6 +115,9 @@ export default function ExpensesPage() {
   }
 
   const normalizedSearchTerm = searchTerm.trim().toLowerCase();
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const currentMonthTotals = (summary?.monthly || []).filter((entry) => entry.month === currentMonth);
   const filteredExpenses = expenses.filter((expense) => {
     if (!normalizedSearchTerm) return true;
 
@@ -169,6 +199,48 @@ export default function ExpensesPage() {
       {loading ? <p className="text-sm text-muted">Loading expenses...</p> : null}
       {error ? <p className="text-sm font-medium text-badge-rejected-foreground">{error}</p> : null}
 
+      {!loading && !error && summary ? (
+        <div className="rounded-xl border border-border bg-surface p-5 shadow-sm">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Summary</h2>
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-lg border border-border/70 bg-accent/20 p-3">
+              <p className="text-xs uppercase tracking-wide text-muted">All-time count</p>
+              <p className="mt-1 text-2xl font-semibold text-text">{formatCount(summary?.all_time?.count)}</p>
+            </div>
+            <div className="rounded-lg border border-border/70 bg-accent/20 p-3">
+              <p className="text-xs uppercase tracking-wide text-muted">All-time totals</p>
+              <div className="mt-2 space-y-1 text-sm text-text">
+                {(summary?.all_time?.totals || []).map((total) => (
+                  <div
+                    key={`all-time-${total.currency}`}
+                    className="flex items-center justify-between rounded border border-border/50 bg-surface/60 px-2 py-1"
+                  >
+                    <span className="font-medium">{total.currency}</span>
+                    <span>{formatCents(total.amount_cents)}</span>
+                  </div>
+                ))}
+                {(summary?.all_time?.totals || []).length === 0 ? <p>-</p> : null}
+              </div>
+            </div>
+            <div className="rounded-lg border border-border/70 bg-accent/20 p-3">
+              <p className="text-xs uppercase tracking-wide text-muted">Current month totals</p>
+              <div className="mt-2 space-y-1 text-sm text-text">
+                {currentMonthTotals.map((total) => (
+                  <div
+                    key={`month-${total.month}-${total.currency}`}
+                    className="flex items-center justify-between rounded border border-border/50 bg-surface/60 px-2 py-1"
+                  >
+                    <span className="font-medium">{total.currency}</span>
+                    <span>{formatCents(total.amount_cents)}</span>
+                  </div>
+                ))}
+                {currentMonthTotals.length === 0 ? <p>-</p> : null}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {!loading && !error ? (
         <div className="overflow-x-auto rounded-xl border border-border bg-surface shadow-sm">
           <table className="w-full min-w-[760px] divide-y divide-border text-sm">
@@ -192,7 +264,7 @@ export default function ExpensesPage() {
                     {expense.user?.email || "-"}
                   </td>
                   <td className="px-4 py-3 text-text">
-                    {expense.currency} {(expense.amount_cents / 100).toFixed(2)}
+                    {formatMoney(expense.currency, expense.amount_cents)}
                   </td>
                   <td className="px-4 py-3 text-text">{formatDate(expense.incurred_on)}</td>
                   <td className="px-4 py-3">
@@ -226,7 +298,7 @@ export default function ExpensesPage() {
       {pagination ? (
         <div className="flex items-center justify-between rounded-xl border border-border bg-surface p-4 text-sm shadow-sm">
           <p className="text-muted">
-            Page {pagination.page} of {pagination.pages} • Total {pagination.count}
+            Page {formatCount(pagination.page)} of {formatCount(pagination.pages)} • Total {formatCount(pagination.count)}
           </p>
           <div className="flex gap-2">
             <Button

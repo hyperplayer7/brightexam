@@ -158,6 +158,48 @@ Error cases:
 
 ---
 
+### GET `/api/expenses/summary`
+- Auth required: Yes
+- Role rules:
+  - employee: own expenses only (via policy scope)
+  - reviewer: all expenses (via policy scope)
+
+Request body: none
+
+Success response `200`:
+```json
+{
+  "data": {
+    "all_time": {
+      "count": 3,
+      "totals": [
+        { "currency": "PHP", "amount_cents": 175000 },
+        { "currency": "USD", "amount_cents": 25000 }
+      ]
+    },
+    "by_status": [
+      { "status": "drafted", "count": 1 },
+      { "status": "submitted", "count": 1 },
+      { "status": "approved", "count": 1 },
+      { "status": "rejected", "count": 0 }
+    ],
+    "monthly": [
+      { "month": "2026-01", "currency": "PHP", "count": 1, "amount_cents": 75000 },
+      { "month": "2026-02", "currency": "PHP", "count": 1, "amount_cents": 100000 },
+      { "month": "2026-02", "currency": "USD", "count": 1, "amount_cents": 25000 }
+    ]
+  }
+}
+```
+
+Error cases:
+- `401` unauthenticated
+```json
+{ "errors": ["unauthorized"] }
+```
+
+---
+
 ### GET `/api/expenses/:id`
 - Auth required: Yes
 - Role rules:

@@ -67,6 +67,10 @@ export function listExpenses(params = {}) {
   return request(`/api/expenses${suffix}`);
 }
 
+export function getExpensesSummary() {
+  return request("/api/expenses/summary");
+}
+
 export function getExpense(id) {
   return request(`/api/expenses/${id}`);
 }

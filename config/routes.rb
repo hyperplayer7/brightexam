@@ -5,6 +5,10 @@ Rails.application.routes.draw do
     get "me", to: "sessions#me"
 
     resources :expenses, only: %i[index show create update destroy] do
+      collection do
+        get :summary
+      end
+
       member do
         post :submit
         post :approve

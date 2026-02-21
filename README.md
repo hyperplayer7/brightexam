@@ -121,6 +121,7 @@ Auth:
 
 Expenses:
 - `GET /api/expenses`
+- `GET /api/expenses/summary`
 - `GET /api/expenses/:id`
 - `POST /api/expenses`
 - `PATCH /api/expenses/:id`

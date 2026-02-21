@@ -33,6 +33,50 @@ module Api
       render json: { data: expense_payload(@expense) }
     end
 
+    def summary
+      expenses_scope = policy_scope(Expense)
+      start_month = Date.current.beginning_of_month - 5.months
+      end_month = Date.current.end_of_month
+
+      all_time_totals = expenses_scope.group(:currency).sum(:amount_cents)
+      monthly_rows = expenses_scope
+        .where(incurred_on: start_month..end_month)
+        .group(Arel.sql("TO_CHAR(incurred_on, 'YYYY-MM')"), :currency)
+        .pluck(
+          Arel.sql("TO_CHAR(incurred_on, 'YYYY-MM')"),
+          :currency,
+          Arel.sql("COUNT(*)"),
+          Arel.sql("SUM(amount_cents)")
+        )
+
+      monthly = monthly_rows.map do |month, currency, count, amount_cents|
+        {
+          month: month,
+          currency: currency,
+          count: count.to_i,
+          amount_cents: amount_cents.to_i
+        }
+      end.sort_by { |entry| [ entry[:month], entry[:currency] ] }
+
+      render json: {
+        data: {
+          all_time: {
+            count: expenses_scope.count,
+            totals: all_time_totals
+              .sort_by { |currency, _amount_cents| currency.to_s }
+              .map { |currency, amount_cents| { currency: currency, amount_cents: amount_cents.to_i } }
+          },
+          by_status: Expense.statuses.keys.map do |status|
+            {
+              status: status,
+              count: expenses_scope.where(status: status).count
+            }
+          end,
+          monthly: monthly
+        }
+      }
+    end
+
     def create
       expense = current_user.expenses.new(expense_params)
       authorize expense
