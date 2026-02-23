@@ -1,5 +1,12 @@
 # Expense Tracker (Rails API + Next.js)
 
+## 🌍 Live Demo
+
+Production deployment of BrightExam (Frontend + API).
+
+- Frontend (Vercel): [https://brightexam-mgkfmijsf-guesswhos-projects-ee050cfb.vercel.app/login](https://brightexam-mgkfmijsf-guesswhos-projects-ee050cfb.vercel.app/login)
+- Backend API (Render): [https://brightexam.onrender.com/](https://brightexam.onrender.com/)
+
 Expense Tracker is a full-stack app with a Rails API backend and a Next.js App Router frontend.
 It supports employee expense submission and reviewer approval/rejection workflows using cookie-based session authentication.
 
