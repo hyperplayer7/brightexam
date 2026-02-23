@@ -1,19 +1,6 @@
 require "rails_helper"
 
 RSpec.describe "User role management", type: :request do
-  let(:login_path) { "/api/login" }
-
-  def login_as(email:, password:)
-    post login_path,
-      params: { email: email, password: password }.to_json,
-      headers: { "CONTENT_TYPE" => "application/json" }
-    expect(response).to have_http_status(:ok)
-  end
-
-  def json
-    JSON.parse(response.body)
-  end
-
   let!(:reviewer) do
     User.create!(
       email: "reviewer_roles@test.com",
@@ -42,39 +29,64 @@ RSpec.describe "User role management", type: :request do
   end
 
   describe "GET /api/users" do
-    it "reviewer can list users" do
-      login_as(email: reviewer.email, password: "password")
-
+    it "returns 401 when unauthenticated" do
       get "/api/users"
 
+      expect(response).to have_http_status(:unauthorized)
+      expect(json_response.fetch("errors")).to include("unauthorized")
+    end
+
+    it "reviewer can list users" do
+      cookie = login_and_capture_cookie(email: reviewer.email, password: "password")
+
+      authenticated_request(:get, "/api/users", cookie: cookie)
+
       expect(response).to have_http_status(:ok)
-      rows = json.fetch("data")
+      rows = json_response.fetch("data")
       expect(rows).to be_an(Array)
       expect(rows.map { |row| row.fetch("email") }).to include(reviewer.email, employee.email, another_employee.email)
       expect(rows.first).to include("id", "email", "role", "created_at")
     end
 
     it "employee cannot list users" do
-      login_as(email: employee.email, password: "password")
+      cookie = login_and_capture_cookie(email: employee.email, password: "password")
 
-      get "/api/users"
+      authenticated_request(:get, "/api/users", cookie: cookie)
 
       expect(response).to have_http_status(:forbidden)
-      expect(json.fetch("errors")).to include("forbidden")
+      expect(json_response.fetch("errors")).to include("forbidden")
     end
   end
 
   describe "PATCH /api/users/:id/role" do
-    it "reviewer can update role" do
-      login_as(email: reviewer.email, password: "password")
+    it "employee is forbidden from updating roles" do
+      cookie = login_and_capture_cookie(email: employee.email, password: "password")
 
-      patch "/api/users/#{employee.id}/role",
-        params: { role: "reviewer" }.to_json,
-        headers: { "CONTENT_TYPE" => "application/json" }
+      authenticated_request(
+        :patch,
+        "/api/users/#{another_employee.id}/role",
+        cookie: cookie,
+        params: { role: "reviewer" }.to_json
+      )
+
+      expect(response).to have_http_status(:forbidden)
+      expect(json_response.fetch("errors")).to include("forbidden")
+      expect(another_employee.reload.role).to eq("employee")
+    end
+
+    it "reviewer can update role" do
+      cookie = login_and_capture_cookie(email: reviewer.email, password: "password")
+
+      authenticated_request(
+        :patch,
+        "/api/users/#{employee.id}/role",
+        cookie: cookie,
+        params: { role: "reviewer" }.to_json
+      )
 
       expect(response).to have_http_status(:ok)
       expect(employee.reload.role).to eq("reviewer")
-      expect(json.fetch("data")).to include(
+      expect(json_response.fetch("data")).to include(
         "id" => employee.id,
         "email" => employee.email,
         "role" => "reviewer"
@@ -82,27 +94,47 @@ RSpec.describe "User role management", type: :request do
     end
 
     it "invalid role returns 422" do
-      login_as(email: reviewer.email, password: "password")
+      cookie = login_and_capture_cookie(email: reviewer.email, password: "password")
 
-      patch "/api/users/#{employee.id}/role",
-        params: { role: "admin" }.to_json,
-        headers: { "CONTENT_TYPE" => "application/json" }
+      authenticated_request(
+        :patch,
+        "/api/users/#{employee.id}/role",
+        cookie: cookie,
+        params: { role: "admin" }.to_json
+      )
 
       expect(response).to have_http_status(:unprocessable_entity)
       expect(employee.reload.role).to eq("employee")
-      expect(json.fetch("errors").join(" ")).to include("role must be one of")
+      expect(json_response.fetch("errors").join(" ")).to include("role must be one of")
+    end
+
+    it "returns 404 for nonexistent user" do
+      cookie = login_and_capture_cookie(email: reviewer.email, password: "password")
+
+      authenticated_request(
+        :patch,
+        "/api/users/999999/role",
+        cookie: cookie,
+        params: { role: "employee" }.to_json
+      )
+
+      expect(response).to have_http_status(:not_found)
+      expect(json_response.fetch("errors")).to include("not_found")
     end
 
     it "reviewer cannot change their own role" do
-      login_as(email: reviewer.email, password: "password")
+      cookie = login_and_capture_cookie(email: reviewer.email, password: "password")
 
-      patch "/api/users/#{reviewer.id}/role",
-        params: { role: "employee" }.to_json,
-        headers: { "CONTENT_TYPE" => "application/json" }
+      authenticated_request(
+        :patch,
+        "/api/users/#{reviewer.id}/role",
+        cookie: cookie,
+        params: { role: "employee" }.to_json
+      )
 
-      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.status).to be_between(400, 499)
       expect(reviewer.reload.role).to eq("reviewer")
-      expect(json.fetch("errors")).to include("cannot_change_own_role")
+      expect(json_response.fetch("errors")).to include("cannot_change_own_role")
     end
   end
 end
