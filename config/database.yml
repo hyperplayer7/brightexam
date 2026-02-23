@@ -1,19 +1,20 @@
-development:
+default: &default
   adapter: postgresql
   encoding: unicode
-  database: brightexam_development
-  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS", 5) %>
   username: <%= ENV.fetch("DB_USERNAME", "somename") %>
   password: <%= ENV["DB_PASSWORD"] %>
   host: <%= ENV.fetch("DB_HOST", "localhost") %>
   port: <%= ENV.fetch("DB_PORT", 5432) %>
 
+development:
+  <<: *default
+  database: brightexam_development
+
 test:
-  adapter: postgresql
-  encoding: unicode
+  <<: *default
   database: brightexam_test
-  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
-  username: <%= ENV.fetch("DB_USERNAME", "somename") %>
-  password: <%= ENV["DB_PASSWORD"] %>
-  host: <%= ENV.fetch("DB_HOST", "localhost") %>
-  port: <%= ENV.fetch("DB_PORT", 5432) %>
+
+production:
+  <<: *default
+  url: <%= ENV.fetch("DATABASE_URL") %>
