@@ -1,12 +1,17 @@
 # config/initializers/cors.rb
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
-    origins "http://localhost:3001", "http://127.0.0.1:3001"
+    # Allow local dev + your Vercel deployments (preview + prod)
+    origins(
+      "http://localhost:3001",
+      "https://brightexam.vercel.app",
+      %r{\Ahttps://brightexam-.*\.vercel\.app\z}
+    )
 
     resource "*",
       headers: :any,
       methods: %i[get post put patch delete options head],
       credentials: true,
-      expose: [ "Set-Cookie" ]
+      expose: ["Set-Cookie"]
   end
 end
