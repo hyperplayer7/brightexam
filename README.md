@@ -8,7 +8,7 @@ It supports employee expense submission and reviewer approval/rejection workflow
 - Backend: Rails API-only app (`app/controllers/api/*`) with PostgreSQL, Pundit, Pagy, and RSpec
 - Frontend: Next.js App Router (`web/src/app/*`) with Tailwind CSS and client-side API calls
 - Auth: Rails session cookie (`HttpOnly`) + frontend `fetch(..., { credentials: "include" })`
-- Authorization: Pundit for expenses and users; category create uses a direct reviewer check
+- Authorization: Pundit policies for expenses, categories, and users
 - Audit trail: Expense actions are recorded in `expense_audit_logs`
 
 ## Implemented Feature Summary (Current Code)
@@ -20,7 +20,7 @@ It supports employee expense submission and reviewer approval/rejection workflow
 - Expense summary analytics endpoint and summary cards in frontend
 - Categories:
   - list endpoint for authenticated users
-  - create endpoint for reviewers
+  - create endpoint for reviewers (`POST /api/categories`)
   - reviewer-facing categories page (list + add form)
 - User role management:
   - reviewer-only users list endpoint
@@ -45,7 +45,7 @@ It supports employee expense submission and reviewer approval/rejection workflow
   - can view all expenses
   - can approve/reject `submitted` expenses
   - cannot create/update/delete/submit employee expenses
-  - can create categories
+  - can create categories (reviewer-only)
   - can list users and update user roles (except own role)
 
 ## Workflow State Diagram
@@ -147,14 +147,24 @@ npm run lint
 
 - Rails API uses cookie-based session auth in API mode (cookies/session middleware re-enabled)
 - Frontend API client always sends `credentials: "include"`
+- Frontend pages that require auth (`/expenses`, `/categories`, `/users`) use consistent handling:
+  - `401` -> redirect to `/login`
+  - `403` -> render a shared forbidden state with a link back to `/expenses`
 - CORS currently allows:
   - `http://localhost:3001`
   - `http://127.0.0.1:3001`
 
-## Current Known Integration Mismatch (Docs Reflecting Code)
+## Categories (API + UI Notes)
 
-- Backend category create endpoint expects nested payload:
-  - `{ "category": { "name": "..." } }`
-- Current frontend `createCategory()` sends:
-  - `{ "name": "..." }`
-- This mismatch affects reviewer category creation unless one side is updated.
+- `GET /api/categories` is available to any authenticated user.
+- `POST /api/categories` is reviewer-only (enforced by `CategoryPolicy` + controller authorization).
+- Category create request body uses nested payload shape:
+  - `{ "category": { "name": "Internet" } }`
+- Reviewer `/categories` UI uses the same payload shape via `createCategory()`.
+
+## Frontend API Base URL Configuration
+
+- The frontend API client reads `NEXT_PUBLIC_API_BASE_URL`.
+- If not set, it falls back to `http://localhost:3000`.
+- Example for local/dev shells:
+  - `NEXT_PUBLIC_API_BASE_URL=http://localhost:3000`

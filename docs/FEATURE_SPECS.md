@@ -45,6 +45,7 @@ Source of truth: Rails routes/controllers/policies/models/services, frontend pag
 ### Categories
 - `GET /api/categories` for any authenticated user
 - `POST /api/categories` reviewer-only
+- Categories RBAC enforced via Pundit (`CategoryPolicy#index?`, `CategoryPolicy#create?`)
 - Category names are normalized (trimmed) and unique (case-insensitive app validation)
 
 ### User Role Management
@@ -93,9 +94,10 @@ Source of truth: Rails routes/controllers/policies/models/services, frontend pag
 - Uses `lock_version` on update (optimistic locking)
 
 ### Categories UI (`/categories`)
-- Reviewer-only page (frontend access gating + backend auth still applies)
+- Reviewer-only management page (frontend access gating + backend auth still applies)
 - Category list display
 - Add category form
+- Create request uses backend payload contract: `{ category: { name } }`
 - Validation error display for create attempts
 - Created column is shown only if timestamp data is present in API payload
 
@@ -105,6 +107,12 @@ Source of truth: Rails routes/controllers/policies/models/services, frontend pag
 - Per-row role dropdown + save button
 - Success/error message per row
 
+### Frontend Auth/Error Handling (Protected Pages)
+- Protected pages (`/expenses`, `/categories`, `/users`) use shared auth helpers
+- `401` API errors redirect to `/login`
+- `403` API errors render a shared forbidden state UI with a link back to `/expenses`
+- Shared forbidden UI component: `ForbiddenState`
+
 ## Behavior Constraints (Implemented)
 
 - Reviewer cannot create expenses (policy + frontend UI guard)
@@ -113,12 +121,6 @@ Source of truth: Rails routes/controllers/policies/models/services, frontend pag
 - Reject requires nonblank `rejection_reason`
 - Expense ownership is backend-controlled (`current_user.expenses.new`)
 - Expense updates use optimistic locking (`lock_version`)
-
-## Known Current Mismatch (Implemented Code, Not Desired Behavior)
-
-- Frontend category create request body is `{ name }`
-- Backend category create endpoint expects `{ category: { name } }`
-- Result: category creation from current frontend may return `400` (`ParameterMissing`)
 
 ## Optional Enhancements (Not Implemented; marked explicitly)
 

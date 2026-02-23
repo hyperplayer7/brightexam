@@ -5,9 +5,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Badge from "../../components/Badge";
 import Button from "../../components/Button";
+import ForbiddenState from "../../components/ForbiddenState";
 import Input from "../../components/Input";
 import TopNav from "../../components/TopNav";
-import { getCurrentUser } from "../../lib/auth";
+import { isForbiddenError, isUnauthorizedError, requireCurrentUser } from "../../lib/auth";
 import { getExpensesSummary, listCategories, listExpenses } from "../../lib/api";
 
 function formatDate(value) {
@@ -48,6 +49,7 @@ export default function ExpensesPage() {
   const [page, setPage] = useState(1);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [forbidden, setForbidden] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,10 +58,11 @@ export default function ExpensesPage() {
       try {
         setLoading(true);
         setError("");
+        setForbidden(false);
         const normalizedStatus = statusFilter?.trim?.() || "";
 
         const [currentUser, expenseResponse, categoriesResponse] = await Promise.all([
-          getCurrentUser(),
+          requireCurrentUser(),
           listExpenses({
             status: normalizedStatus === "all" || normalizedStatus === "" ? undefined : normalizedStatus,
             category_id: categoryFilter === "all" ? undefined : categoryFilter,
@@ -84,8 +87,12 @@ export default function ExpensesPage() {
         }
       } catch (err) {
         if (!cancelled) {
-          if (err.status === 401) {
+          if (isUnauthorizedError(err)) {
             router.push("/login");
+            return;
+          }
+          if (isForbiddenError(err)) {
+            setForbidden(true);
             return;
           }
           setError(err.message);
@@ -225,8 +232,11 @@ export default function ExpensesPage() {
 
       {loading ? <p className="text-sm text-muted">Loading expenses...</p> : null}
       {error ? <p className="text-sm font-medium text-badge-rejected-foreground">{error}</p> : null}
+      {!loading && !error && forbidden ? (
+        <ForbiddenState message="You do not have access to view expenses." />
+      ) : null}
 
-      {!loading && !error && summary ? (
+      {!loading && !error && !forbidden && summary ? (
         <div className="rounded-xl border border-border bg-surface p-5 shadow-sm">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Summary</h2>
           <div className="mt-3 grid gap-3 sm:grid-cols-3">
@@ -268,7 +278,7 @@ export default function ExpensesPage() {
         </div>
       ) : null}
 
-      {!loading && !error ? (
+      {!loading && !error && !forbidden ? (
         <div className="overflow-x-auto rounded-xl border border-border bg-surface shadow-sm">
           <table className="w-full min-w-[760px] divide-y divide-border text-sm">
             <thead className="bg-accent/25 text-left text-xs font-semibold uppercase tracking-wide text-muted">
@@ -326,7 +336,7 @@ export default function ExpensesPage() {
         </div>
       ) : null}
 
-      {pagination ? (
+      {!forbidden && pagination ? (
         <div className="flex items-center justify-between rounded-xl border border-border bg-surface p-4 text-sm shadow-sm">
           <p className="text-muted">
             Page {formatCount(pagination.page)} of {formatCount(pagination.pages)} • Total {formatCount(pagination.count)}

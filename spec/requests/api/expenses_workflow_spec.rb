@@ -164,6 +164,28 @@ RSpec.describe "Expenses workflow", type: :request do
       post "/api/expenses/#{expense.id}/approve"
       expect(response).to have_http_status(:forbidden)
     end
+
+    it "returns 4xx with error envelope when approving an already-approved expense" do
+      login_as(email: reviewer.email, password: "password")
+
+      expense = Expense.create!(
+        user: employee,
+        amount_cents: 2500,
+        currency: "USD",
+        merchant: "Lunch",
+        description: "Meal",
+        incurred_on: Date.new(2026, 2, 20),
+        status: :submitted,
+        submitted_at: Time.current
+      )
+
+      post "/api/expenses/#{expense.id}/approve"
+      expect(response).to have_http_status(:ok)
+
+      post "/api/expenses/#{expense.id}/approve"
+      expect(response.status).to be_between(400, 499)
+      expect(json.fetch("errors")).to be_an(Array)
+    end
   end
 
   describe "reject" do
@@ -212,6 +234,32 @@ RSpec.describe "Expenses workflow", type: :request do
            headers: { "CONTENT_TYPE" => "application/json" }
 
       expect(response).to have_http_status(:unprocessable_entity)
+    end
+
+    it "returns 4xx with error envelope when rejecting an already-rejected expense" do
+      login_as(email: reviewer.email, password: "password")
+
+      expense = Expense.create!(
+        user: employee,
+        amount_cents: 999,
+        currency: "USD",
+        merchant: "Supplies",
+        description: "Pens",
+        incurred_on: Date.new(2026, 2, 20),
+        status: :submitted,
+        submitted_at: Time.current
+      )
+
+      post "/api/expenses/#{expense.id}/reject",
+           params: { rejection_reason: "Missing receipt" }.to_json,
+           headers: { "CONTENT_TYPE" => "application/json" }
+      expect(response).to have_http_status(:ok)
+
+      post "/api/expenses/#{expense.id}/reject",
+           params: { rejection_reason: "Still missing" }.to_json,
+           headers: { "CONTENT_TYPE" => "application/json" }
+      expect(response.status).to be_between(400, 499)
+      expect(json.fetch("errors")).to be_an(Array)
     end
   end
 end

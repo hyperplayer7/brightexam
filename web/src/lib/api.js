@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://localhost:3000";
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000").replace(/\/$/, "");
 
 async function request(path, options = {}) {
   const headers = { ...(options.headers || {}) };
@@ -19,7 +19,9 @@ async function request(path, options = {}) {
     const message = `API request failed (${response.status}): ${bodyText || response.statusText}`;
     const error = new Error(message);
     error.status = response.status;
+    error.statusText = response.statusText;
     error.body = bodyText;
+    error.bodyText = bodyText;
     throw error;
   }
 
@@ -78,7 +80,7 @@ export function listCategories() {
 export function createCategory(name) {
   return request("/api/categories", {
     method: "POST",
-    body: JSON.stringify({ name })
+    body: JSON.stringify({ category: { name } })
   });
 }
 

@@ -9,6 +9,10 @@ Source of truth:
 
 Base URL (local): `http://localhost:3000`
 
+Frontend API base URL config:
+- `web/src/lib/api.js` reads `NEXT_PUBLIC_API_BASE_URL`
+- Falls back to `http://localhost:3000` when unset
+
 ## Authentication Model
 
 - Rails session cookie auth (`HttpOnly`)
@@ -112,7 +116,7 @@ Errors:
 ### GET `/api/categories`
 
 Auth required: Yes
-Role rules: any authenticated user
+Role rules: any authenticated user (`CategoryPolicy#index?`)
 
 Success `200`:
 ```json
@@ -131,9 +135,9 @@ Errors:
 ### POST `/api/categories`
 
 Auth required: Yes
-Role rules: reviewer only (manual check in controller)
+Role rules: reviewer only (`CategoryPolicy#create?`)
 
-Actual request body shape (backend expects nested `category`):
+Request body (nested `category` payload):
 ```json
 {
   "category": {
@@ -165,6 +169,10 @@ Examples:
 { "errors": ["param is missing or the value is empty or invalid: category"] }
 { "errors": ["Name has already been taken"] }
 ```
+
+Authorization notes:
+- `authenticate_user!` returns `401` for unauthenticated requests
+- Pundit authorization returns `403` for authenticated non-reviewers
 
 ---
 

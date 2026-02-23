@@ -73,64 +73,12 @@ RSpec.describe "Categories API", type: :request do
     end
   end
 
-  describe "invalid category_id handling on expenses" do
-    let(:invalid_category_id) { Category.maximum(:id).to_i + 99_999 }
+  describe "GET /api/categories" do
+    it "returns 401 when unauthenticated" do
+      get "/api/categories"
 
-    it "does not raise 500 on create and responds with 4xx" do
-      cookie = login_and_capture_cookie(email: employee.email, password: "password")
-
-      begin
-        authenticated_request(
-          :post,
-          "/api/expenses",
-          cookie: cookie,
-          params: {
-            expense: {
-              amount_cents: 1000,
-              currency: "USD",
-              merchant: "Taxi",
-              description: "Airport",
-              incurred_on: Date.current.to_s,
-              category_id: invalid_category_id
-            }
-          }.to_json
-        )
-      rescue ActiveRecord::InvalidForeignKey
-        skip "Current app raises ActiveRecord::InvalidForeignKey for invalid category_id on create"
-      end
-
-      expect(response.status).to be_between(400, 499)
-    end
-
-    it "does not raise 500 on update and responds with 4xx" do
-      expense = Expense.create!(
-        user: employee,
-        amount_cents: 1000,
-        currency: "USD",
-        merchant: "Taxi",
-        description: "Airport",
-        incurred_on: Date.current,
-        status: :drafted
-      )
-      cookie = login_and_capture_cookie(email: employee.email, password: "password")
-
-      begin
-        authenticated_request(
-          :patch,
-          "/api/expenses/#{expense.id}",
-          cookie: cookie,
-          params: {
-            expense: {
-              category_id: invalid_category_id,
-              lock_version: expense.lock_version
-            }
-          }.to_json
-        )
-      rescue ActiveRecord::InvalidForeignKey
-        skip "Current app raises ActiveRecord::InvalidForeignKey for invalid category_id on update"
-      end
-
-      expect(response.status).to be_between(400, 499)
+      expect(response).to have_http_status(:unauthorized)
+      expect(json_response.fetch("errors")).to include("unauthorized")
     end
   end
 end

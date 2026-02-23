@@ -1,12 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Button from "../../components/Button";
+import ForbiddenState from "../../components/ForbiddenState";
 import Input from "../../components/Input";
 import TopNav from "../../components/TopNav";
-import { getCurrentUser } from "../../lib/auth";
+import { isForbiddenError, isUnauthorizedError, requireCurrentUser } from "../../lib/auth";
 import { listUsers, updateUserRole } from "../../lib/api";
 
 const ROLE_OPTIONS = ["employee", "reviewer"];
@@ -42,6 +42,7 @@ export default function UsersPage() {
   const [rowMessages, setRowMessages] = useState({});
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [forbidden, setForbidden] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,8 +51,9 @@ export default function UsersPage() {
       try {
         setLoading(true);
         setError("");
+        setForbidden(false);
 
-        const currentUser = await getCurrentUser();
+        const currentUser = await requireCurrentUser();
         if (currentUser?.role !== "reviewer") {
           if (!cancelled) {
             setUser(currentUser);
@@ -75,8 +77,12 @@ export default function UsersPage() {
         }
       } catch (err) {
         if (cancelled) return;
-        if (err.status === 401) {
+        if (isUnauthorizedError(err)) {
           router.push("/login");
+          return;
+        }
+        if (isForbiddenError(err)) {
+          setForbidden(true);
           return;
         }
         setError(err.message || "Failed to load users.");
@@ -142,20 +148,15 @@ export default function UsersPage() {
 
       {loading ? <p className="text-sm text-muted">Loading users...</p> : null}
       {!loading && error ? <p className="text-sm font-medium text-badge-rejected-foreground">{error}</p> : null}
-
-      {!loading && !error && user && !isReviewer ? (
-        <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
-          <h1 className="text-2xl font-bold text-text">Forbidden</h1>
-          <p className="mt-2 text-sm text-muted">Only reviewers can manage user roles.</p>
-          <div className="mt-4">
-            <Link href="/expenses">
-              <Button variant="secondary">Back to Expenses</Button>
-            </Link>
-          </div>
-        </div>
+      {!loading && !error && forbidden ? (
+        <ForbiddenState message="Only reviewers can manage user roles." />
       ) : null}
 
-      {!loading && !error && isReviewer ? (
+      {!loading && !error && !forbidden && user && !isReviewer ? (
+        <ForbiddenState message="Only reviewers can manage user roles." />
+      ) : null}
+
+      {!loading && !error && !forbidden && isReviewer ? (
         <>
           <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
             <h1 className="text-2xl font-bold text-text">Users</h1>

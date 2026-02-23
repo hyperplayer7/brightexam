@@ -116,4 +116,47 @@ RSpec.describe "Expense audit logs", type: :request do
     expect(log.action).to eq("expense.deleted")
     expect(ExpenseAuditLog.where(id: log.id)).to exist
   end
+
+  it "returns audit log payload items with expected keys and actor shape" do
+    login_as(email: employee.email, password: "password")
+
+    expense = Expense.create!(
+      user: employee,
+      amount_cents: 1400,
+      currency: "USD",
+      merchant: "Cafe",
+      description: "Coffee",
+      incurred_on: Date.new(2026, 2, 20),
+      status: :drafted
+    )
+
+    ExpenseAuditLog.create!(
+      expense: expense,
+      actor: employee,
+      action: "expense.created",
+      from_status: nil,
+      to_status: "drafted",
+      metadata: { "source" => "spec" }
+    )
+
+    get "/api/expenses/#{expense.id}/audit_logs"
+
+    expect(response).to have_http_status(:ok)
+    rows = JSON.parse(response.body).fetch("data")
+    expect(rows).to be_an(Array)
+    expect(rows).not_to be_empty
+
+    row = rows.first
+    expect(row).to include("id", "action", "from_status", "to_status", "metadata", "actor", "created_at")
+    expect(row.fetch("id")).to be_a(Integer)
+    expect(row.fetch("action")).to be_a(String)
+    expect(row.fetch("metadata")).to be_a(Hash)
+    expect(row.fetch("created_at")).to be_a(String)
+
+    actor = row.fetch("actor")
+    expect(actor).to include("id", "email", "role")
+    expect(actor.fetch("id")).to be_a(Integer)
+    expect(actor.fetch("email")).to eq(employee.email)
+    expect(actor.fetch("role")).to eq("employee")
+  end
 end

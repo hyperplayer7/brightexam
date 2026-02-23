@@ -1,12 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Button from "../../components/Button";
+import ForbiddenState from "../../components/ForbiddenState";
 import Input from "../../components/Input";
 import TopNav from "../../components/TopNav";
-import { getCurrentUser } from "../../lib/auth";
+import { isForbiddenError, isUnauthorizedError, requireCurrentUser } from "../../lib/auth";
 import { createCategory, listCategories } from "../../lib/api";
 
 function formatDateTime(value) {
@@ -57,6 +57,7 @@ export default function CategoriesPage() {
   const [submitError, setSubmitError] = useState("");
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [forbidden, setForbidden] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,8 +66,9 @@ export default function CategoriesPage() {
       try {
         setLoading(true);
         setError("");
+        setForbidden(false);
 
-        const currentUser = await getCurrentUser();
+        const currentUser = await requireCurrentUser();
         let categoriesResponse = null;
 
         if (currentUser?.role === "reviewer") {
@@ -80,8 +82,12 @@ export default function CategoriesPage() {
       } catch (err) {
         if (cancelled) return;
 
-        if (err.status === 401) {
+        if (isUnauthorizedError(err)) {
           router.push("/login");
+          return;
+        }
+        if (isForbiddenError(err)) {
+          setForbidden(true);
           return;
         }
 
@@ -137,20 +143,15 @@ export default function CategoriesPage() {
 
       {loading ? <p className="text-sm text-muted">Loading categories...</p> : null}
       {!loading && error ? <p className="text-sm font-medium text-badge-rejected-foreground">{error}</p> : null}
-
-      {!loading && !error && user && !isReviewer ? (
-        <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
-          <h1 className="text-2xl font-bold text-text">Forbidden</h1>
-          <p className="mt-2 text-sm text-muted">Only reviewers can manage categories.</p>
-          <div className="mt-4">
-            <Link href="/expenses">
-              <Button variant="secondary">Back to Expenses</Button>
-            </Link>
-          </div>
-        </div>
+      {!loading && !error && forbidden ? (
+        <ForbiddenState message="Only reviewers can manage categories." />
       ) : null}
 
-      {!loading && !error && isReviewer ? (
+      {!loading && !error && !forbidden && user && !isReviewer ? (
+        <ForbiddenState message="Only reviewers can manage categories." />
+      ) : null}
+
+      {!loading && !error && !forbidden && isReviewer ? (
         <>
           <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
             <h1 className="text-2xl font-bold text-text">Categories</h1>

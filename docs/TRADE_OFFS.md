@@ -37,19 +37,21 @@ Current implementation details:
 - Session cookie: `HttpOnly`, `same_site: :lax`
 - CORS credentials enabled for local frontend origins
 
-## 3) Authorization Split: Pundit + One Manual Check
+## 3) Authorization via Pundit Across Resources
 
 Decision:
-- Use Pundit for expense and user-role authorization.
-- Category creation currently uses a direct reviewer check in controller.
+- Use Pundit for expense, category, and user-role authorization.
 
 Why:
-- Pundit centralizes most role and ownership rules.
-- Category create check is a smaller direct implementation.
+- Pundit centralizes role and ownership rules in policy classes.
+- Keeps authorization behavior more discoverable and easier to test consistently.
 
 Trade-off:
-- Inconsistent authorization style across resources.
-- Category auth rules are less discoverable/testable than policy-based rules.
+- Adds some policy boilerplate for simple resources like categories.
+- Controller actions still need explicit `authorize` / `policy_scope` calls to stay correct.
+
+Current implementation detail:
+- `ExpensePolicy`, `UserPolicy`, and `CategoryPolicy`
 
 ## 4) Server-Driven Pagination (Expenses)
 
@@ -160,14 +162,36 @@ Trade-off:
 - Self-role changes are blocked to avoid accidental lockout (`422`)
 - No audit log currently exists for user role changes (expense audit only)
 
-## 11) API Contract Drift Risk (Current Known Issue)
+## 11) Standardized Category Payload Contract
 
-Current state:
-- Backend category create endpoint expects nested payload (`{ category: { name } }`)
-- Frontend category create helper currently sends flat payload (`{ name }`)
+Decision:
+- Use Rails-style nested payloads for category create requests.
+
+Why:
+- Matches `params.require(:category).permit(:name)` in the backend.
+- Keeps request formats consistent with expense create/update wrappers (`expense` payload).
 
 Trade-off:
-- Faster local changes on one side can break integration if docs/tests are not updated in lockstep.
+- Frontend callers must follow the wrapper format exactly (`{ category: { name } }`) or receive `400` (`ParameterMissing`).
+- Slightly more verbose client payloads than flat JSON.
 
-Status:
-- Known mismatch in current codebase (not a design goal)
+Current implementation detail:
+- Frontend `createCategory()` now sends `{ category: { name } }`
+
+## 12) Simplified Frontend Auth/Error Handling on Protected Pages
+
+Decision:
+- Handle auth/access failures in page-level client components using shared helpers and a shared forbidden-state component.
+
+Why:
+- Keeps protected pages behavior consistent without introducing additional libraries or a larger routing/auth framework.
+- Improves UX consistency for `/expenses`, `/categories`, and `/users`.
+
+Trade-off:
+- Still requires per-page data-loading effects and explicit error branching.
+- `me()`/current-user fetching remains client-side and repeated across pages (kept intentionally lightweight).
+
+Current implementation detail:
+- `401` API errors redirect to `/login`
+- `403` API errors render a shared `ForbiddenState` UI
+- API base URL is configurable via `NEXT_PUBLIC_API_BASE_URL` with localhost fallback

@@ -59,6 +59,16 @@ RSpec.describe "User role management", type: :request do
   end
 
   describe "PATCH /api/users/:id/role" do
+    it "returns 401 when unauthenticated" do
+      patch "/api/users/#{employee.id}/role",
+        params: { role: "reviewer" }.to_json,
+        headers: { "CONTENT_TYPE" => "application/json" }
+
+      expect(response).to have_http_status(:unauthorized)
+      expect(json_response.fetch("errors")).to include("unauthorized")
+      expect(employee.reload.role).to eq("employee")
+    end
+
     it "employee is forbidden from updating roles" do
       cookie = login_and_capture_cookie(email: employee.email, password: "password")
 
@@ -106,6 +116,22 @@ RSpec.describe "User role management", type: :request do
       expect(response).to have_http_status(:unprocessable_entity)
       expect(employee.reload.role).to eq("employee")
       expect(json_response.fetch("errors").join(" ")).to include("role must be one of")
+    end
+
+    it "returns 4xx with error envelope when role param is missing" do
+      cookie = login_and_capture_cookie(email: reviewer.email, password: "password")
+
+      authenticated_request(
+        :patch,
+        "/api/users/#{employee.id}/role",
+        cookie: cookie,
+        params: {}.to_json
+      )
+
+      expect(response.status).to be_between(400, 499)
+      expect(json_response).to include("errors")
+      expect(json_response.fetch("errors")).to be_an(Array)
+      expect(employee.reload.role).to eq("employee")
     end
 
     it "returns 404 for nonexistent user" do

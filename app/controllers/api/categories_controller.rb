@@ -3,16 +3,17 @@ module Api
     before_action :authenticate_user!
 
     def index
-      categories = Category.order(:name)
+      authorize Category
+      categories = policy_scope(Category).order(:name)
       render json: {
         data: categories.map { |category| category_payload(category) }
       }, status: :ok
     end
 
     def create
-      return render_errors([ "forbidden" ], :forbidden) unless current_user&.reviewer?
-
       category = Category.new(category_params)
+      authorize category
+
       if category.save
         render json: { data: category_payload(category) }, status: :created
       else
