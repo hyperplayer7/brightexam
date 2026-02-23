@@ -60,4 +60,4 @@ USER 1000:1000
 EXPOSE 3000
 
 # ✅ Run migrations then start server; shell form ensures $PORT expands
-CMD ["sh", "-lc", "bundle exec rails db:prepare && bundle exec rails server -b 0.0.0.0 -p ${PORT:-80}"]
+CMD ["sh", "-lc", "bundle exec rails db:migrate && bundle exec rails db:seed && bundle exec rails server -b 0.0.0.0 -p ${PORT:-80}"]
