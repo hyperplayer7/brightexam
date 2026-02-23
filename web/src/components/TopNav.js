@@ -39,12 +39,20 @@ export default function TopNav({ user }) {
               Expenses
             </Link>
             {user.role === "reviewer" ? (
-              <Link
-                href="/categories"
-                className="rounded-md border border-border px-2 py-1 text-text transition hover:bg-accent/20"
-              >
-                Categories
-              </Link>
+              <>
+                <Link
+                  href="/categories"
+                  className="rounded-md border border-border px-2 py-1 text-text transition hover:bg-accent/20"
+                >
+                  Categories
+                </Link>
+                <Link
+                  href="/users"
+                  className="rounded-md border border-border px-2 py-1 text-text transition hover:bg-accent/20"
+                >
+                  Users
+                </Link>
+              </>
             ) : null}
           </nav>
         ) : null}

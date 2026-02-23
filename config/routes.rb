@@ -5,6 +5,11 @@ Rails.application.routes.draw do
     get "me", to: "sessions#me"
 
     resources :categories, only: %i[index create]
+    resources :users, only: %i[index] do
+      member do
+        patch :role, action: :update_role
+      end
+    end
 
     resources :expenses, only: %i[index show create update destroy] do
       collection do

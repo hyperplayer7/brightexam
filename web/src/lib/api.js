@@ -82,6 +82,17 @@ export function createCategory(name) {
   });
 }
 
+export function listUsers() {
+  return request("/api/users");
+}
+
+export function updateUserRole(id, role) {
+  return request(`/api/users/${id}/role`, {
+    method: "PATCH",
+    body: JSON.stringify({ role })
+  });
+}
+
 export function getExpensesSummary() {
   return request("/api/expenses/summary");
 }
