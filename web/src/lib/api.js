@@ -1,4 +1,6 @@
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000").replace(/\/$/, "");
+const DEFAULT_API_BASE_URL =
+  process.env.NODE_ENV === "production" ? "https://brightexam.onrender.com" : "http://localhost:3000";
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || DEFAULT_API_BASE_URL).replace(/\/$/, "");
 
 async function request(path, options = {}) {
   const headers = { ...(options.headers || {}) };

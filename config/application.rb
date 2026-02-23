@@ -24,7 +24,7 @@ module Brightexam
     config.session_store :cookie_store,
       key: "_brightexam_session",
       httponly: true,
-      same_site: :none,
+      same_site: (Rails.env.production? ? :none : :lax),
       secure: Rails.env.production?
 
     # Re-enable middleware needed for HttpOnly cookie-based sessions in API mode.
