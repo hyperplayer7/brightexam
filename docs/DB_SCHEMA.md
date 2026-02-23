@@ -3,12 +3,24 @@
 Source of truth: `db/schema.rb`.
 
 Schema version:
-- `2026_02_20_000200`
+- `2026_02_21_000200`
 
 ## Extensions
 - `pg_catalog.plpgsql`
 
 ## Tables
+
+### `categories`
+Columns:
+- `id` (bigint, primary key)
+- `name` (string, null: false)
+- `created_at` (datetime, null: false)
+- `updated_at` (datetime, null: false)
+
+Indexes:
+- `index_categories_on_name` (unique)
+
+---
 
 ### `users`
 Columns:
@@ -30,6 +42,7 @@ Columns:
 - `id` (bigint, primary key)
 - `user_id` (bigint, null: false)
 - `reviewer_id` (bigint, null: true)
+- `category_id` (bigint, null: true)
 - `amount_cents` (integer, null: false)
 - `currency` (string, null: false, default: `"USD"`)
 - `description` (text, null: false)
@@ -47,6 +60,7 @@ Columns:
 Indexes:
 - `index_expenses_on_user_id`
 - `index_expenses_on_reviewer_id`
+- `index_expenses_on_category_id`
 - `index_expenses_on_status`
 - `index_expenses_on_incurred_on`
 
@@ -55,10 +69,12 @@ Indexes:
 Foreign keys:
 - `expenses.user_id -> users.id`
 - `expenses.reviewer_id -> users.id`
+- `expenses.category_id -> categories.id`
 
 Association meaning:
 - One user (employee/owner) has many owned expenses via `expenses.user_id`.
 - One user (reviewer) can review many expenses via `expenses.reviewer_id`.
+- One category can be assigned to many expenses via `expenses.category_id`.
 
 ## Enum Fields
 

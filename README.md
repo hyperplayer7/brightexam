@@ -130,4 +130,8 @@ Expenses:
 - `POST /api/expenses/:id/approve`
 - `POST /api/expenses/:id/reject`
 
+Categories:
+- `GET /api/categories`
+- `POST /api/categories` (reviewer only)
+
 See full details in [docs/API.md](docs/API.md).

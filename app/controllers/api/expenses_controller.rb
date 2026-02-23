@@ -5,7 +5,7 @@ module Api
 
     def index
       expenses_scope = policy_scope(Expense)
-        .includes(:user, :reviewer)
+        .includes(:user, :reviewer, :category)
         .order(created_at: :desc)
 
       if params[:status].present?
@@ -13,6 +13,10 @@ module Api
         if allowed.include?(params[:status])
           expenses_scope = expenses_scope.where(status: params[:status])
         end
+      end
+
+      if params[:category_id].present?
+        expenses_scope = expenses_scope.where(category_id: params[:category_id])
       end
 
       @pagy, expenses = pagy(expenses_scope, limit: 5)
@@ -189,7 +193,7 @@ module Api
     private
 
     def set_expense
-      @expense = Expense.find(params[:id])
+      @expense = Expense.includes(:user, :reviewer, :category).find(params[:id])
     end
 
     def expense_params
@@ -199,6 +203,7 @@ module Api
         :description,
         :merchant,
         :incurred_on,
+        :category_id,
         :lock_version
       )
     end
@@ -210,6 +215,7 @@ module Api
         reviewer_id: expense.reviewer_id,
         user: user_payload(expense.user),
         reviewer: expense.reviewer ? user_payload(expense.reviewer) : nil,
+        category: expense.category ? category_payload(expense.category) : nil,
         amount_cents: expense.amount_cents,
         currency: expense.currency,
         description: expense.description,
@@ -230,6 +236,13 @@ module Api
         id: user.id,
         email: user.email,
         role: user.role
+      }
+    end
+
+    def category_payload(category)
+      {
+        id: category.id,
+        name: category.name
       }
     end
 
@@ -260,6 +273,7 @@ module Api
         submitted_at: expense.submitted_at,
         reviewed_at: expense.reviewed_at,
         reviewer_id: expense.reviewer_id,
+        category_id: expense.category_id,
         rejection_reason: expense.rejection_reason
       }
     end

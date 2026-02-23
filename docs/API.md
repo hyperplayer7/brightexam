@@ -85,6 +85,63 @@ Error cases:
 { "errors": ["unauthorized"] }
 ```
 
+## Category Endpoints
+
+### GET `/api/categories`
+- Auth required: Yes
+- Role rules: any authenticated user
+
+Request body: none
+
+Success response `200`:
+```json
+{
+  "data": [
+    { "id": 1, "name": "Meals" },
+    { "id": 2, "name": "Supplies" },
+    { "id": 3, "name": "Transport" }
+  ]
+}
+```
+
+Error cases:
+- `401` unauthenticated
+```json
+{ "errors": ["unauthorized"] }
+```
+
+---
+
+### POST `/api/categories`
+- Auth required: Yes
+- Role rules: reviewer only
+
+Request body:
+```json
+{
+  "category": {
+    "name": "Internet"
+  }
+}
+```
+
+Success response `201`:
+```json
+{
+  "data": { "id": 4, "name": "Internet" }
+}
+```
+
+Error cases:
+- `401` unauthenticated
+- `403` forbidden
+- `422` validation failure
+```json
+{ "errors": ["unauthorized"] }
+{ "errors": ["forbidden"] }
+{ "errors": ["Name has already been taken"] }
+```
+
 ## Expense Endpoints
 
 Expense payload shape used by controllers:
@@ -93,6 +150,7 @@ Expense payload shape used by controllers:
   "id": 1,
   "user_id": 1,
   "reviewer_id": null,
+  "category": { "id": 1, "name": "Transport" },
   "amount_cents": 150000,
   "currency": "PHP",
   "description": "Flight to client site",
@@ -115,6 +173,7 @@ Expense payload shape used by controllers:
   - reviewer: all expenses
 - Query params:
   - `status` (optional; only applied if valid enum key)
+  - `category_id` (optional; filter by category)
   - `page` (optional; Pagy)
 
 Request body: none
@@ -255,7 +314,8 @@ Request body:
     "currency": "PHP",
     "description": "Flight to client site",
     "merchant": "Airline",
-    "incurred_on": "2026-02-20"
+    "incurred_on": "2026-02-20",
+    "category_id": 1
   }
 }
 ```
@@ -308,6 +368,7 @@ Request body:
     "description": "Updated description",
     "merchant": "Airline",
     "incurred_on": "2026-02-20",
+    "category_id": 2,
     "lock_version": 0
   }
 }

@@ -10,9 +10,16 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_02_20_000300) do
+ActiveRecord::Schema[8.0].define(version: 2026_02_21_000200) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "categories", force: :cascade do |t|
+    t.string "name", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["name"], name: "index_categories_on_name", unique: true
+  end
 
   create_table "expense_audit_logs", force: :cascade do |t|
     t.bigint "expense_id"
@@ -45,6 +52,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_20_000300) do
     t.integer "lock_version", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "category_id"
+    t.index ["category_id"], name: "index_expenses_on_category_id"
     t.index ["incurred_on"], name: "index_expenses_on_incurred_on"
     t.index ["reviewer_id"], name: "index_expenses_on_reviewer_id"
     t.index ["status"], name: "index_expenses_on_status"
@@ -61,6 +70,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_20_000300) do
   end
 
   add_foreign_key "expense_audit_logs", "expenses", on_delete: :nullify
+  add_foreign_key "expenses", "categories"
   add_foreign_key "expenses", "users"
   add_foreign_key "expenses", "users", column: "reviewer_id"
 end

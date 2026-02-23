@@ -8,7 +8,7 @@ import Button from "../../components/Button";
 import Input from "../../components/Input";
 import TopNav from "../../components/TopNav";
 import { getCurrentUser } from "../../lib/auth";
-import { getExpensesSummary, listExpenses } from "../../lib/api";
+import { getExpensesSummary, listCategories, listExpenses } from "../../lib/api";
 
 function formatDate(value) {
   if (!value) return "-";
@@ -40,8 +40,10 @@ export default function ExpensesPage() {
   const [user, setUser] = useState(null);
   const [expenses, setExpenses] = useState([]);
   const [summary, setSummary] = useState(null);
+  const [categories, setCategories] = useState([]);
   const [pagination, setPagination] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
   const [error, setError] = useState("");
@@ -56,12 +58,14 @@ export default function ExpensesPage() {
         setError("");
         const normalizedStatus = statusFilter?.trim?.() || "";
 
-        const [currentUser, expenseResponse] = await Promise.all([
+        const [currentUser, expenseResponse, categoriesResponse] = await Promise.all([
           getCurrentUser(),
           listExpenses({
             status: normalizedStatus === "all" || normalizedStatus === "" ? undefined : normalizedStatus,
+            category_id: categoryFilter === "all" ? undefined : categoryFilter,
             page
-          })
+          }),
+          listCategories()
         ]);
 
         let summaryResponse = null;
@@ -74,6 +78,7 @@ export default function ExpensesPage() {
         if (!cancelled) {
           setUser(currentUser);
           setExpenses(expenseResponse?.data || []);
+          setCategories(categoriesResponse?.data || []);
           setSummary(summaryResponse?.data || null);
           setPagination(expenseResponse?.pagination || null);
         }
@@ -97,10 +102,15 @@ export default function ExpensesPage() {
     return () => {
       cancelled = true;
     };
-  }, [page, router, statusFilter]);
+  }, [categoryFilter, page, router, statusFilter]);
 
   function handleStatusChange(event) {
     setStatusFilter(event.target.value);
+    setPage(1);
+  }
+
+  function handleCategoryChange(event) {
+    setCategoryFilter(event.target.value);
     setPage(1);
   }
 
@@ -165,6 +175,23 @@ export default function ExpensesPage() {
                   {STATUS_OPTIONS.map((status) => (
                     <option key={status} value={status}>
                       {status}
+                    </option>
+                  ))}
+                </Input>
+              </div>
+
+              <div className="w-full sm:w-52">
+                <Input
+                  as="select"
+                  id="category-filter"
+                  label="Category"
+                  value={categoryFilter}
+                  onChange={handleCategoryChange}
+                >
+                  <option value="all">all</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={String(category.id)}>
+                      {category.name}
                     </option>
                   ))}
                 </Input>
@@ -248,6 +275,7 @@ export default function ExpensesPage() {
               <tr>
                 <th className="px-4 py-3">Merchant</th>
                 <th className="px-4 py-3">Employee</th>
+                <th className="px-4 py-3">Category</th>
                 <th className="px-4 py-3">Amount</th>
                 <th className="px-4 py-3">Incurred On</th>
                 <th className="px-4 py-3">Status</th>
@@ -262,6 +290,9 @@ export default function ExpensesPage() {
                   </td>
                   <td className="px-4 py-3 text-text">
                     {expense.user?.email || "-"}
+                  </td>
+                  <td className="px-4 py-3 text-text">
+                    {expense.category?.name || "-"}
                   </td>
                   <td className="px-4 py-3 text-text">
                     {formatMoney(expense.currency, expense.amount_cents)}
@@ -285,7 +316,7 @@ export default function ExpensesPage() {
 
               {filteredExpenses.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-6 text-center text-muted" colSpan={6}>
+                  <td className="px-4 py-6 text-center text-muted" colSpan={7}>
                     {searchTerm ? "No expenses match your search on this page." : "No expenses found."}
                   </td>
                 </tr>

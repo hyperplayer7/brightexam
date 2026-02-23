@@ -175,6 +175,7 @@ export default function ExpenseDetailPage() {
               <p><span className="font-semibold">Employee:</span> {expense.user?.email || "-"}</p>
               <p><span className="font-semibold">Reviewer:</span> {expense.reviewer?.email || "-"}</p>
               <p><span className="font-semibold">Merchant:</span> {expense.merchant}</p>
+              <p><span className="font-semibold">Category:</span> {expense.category?.name || "-"}</p>
               <p><span className="font-semibold">Amount:</span> {expense.currency} {(expense.amount_cents / 100).toFixed(2)}</p>
               <p><span className="font-semibold">Incurred on:</span> {expense.incurred_on}</p>
               <p><span className="font-semibold">Status:</span> <Badge status={expense.status}>{expense.status}</Badge></p>

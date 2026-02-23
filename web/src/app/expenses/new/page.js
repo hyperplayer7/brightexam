@@ -7,7 +7,7 @@ import Button from "../../../components/Button";
 import Input from "../../../components/Input";
 import TopNav from "../../../components/TopNav";
 import { getCurrentUser } from "../../../lib/auth";
-import { createExpense } from "../../../lib/api";
+import { createExpense, listCategories } from "../../../lib/api";
 
 const CURRENCY_OPTIONS = ["PHP", "USD"];
 
@@ -24,12 +24,14 @@ function todayDateString() {
 export default function NewExpensePage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
+  const [categories, setCategories] = useState([]);
   const [form, setForm] = useState({
     amount: "",
     currency: "PHP",
     merchant: "",
     description: "",
-    incurred_on: todayDateString()
+    incurred_on: todayDateString(),
+    category_id: ""
   });
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -40,9 +42,13 @@ export default function NewExpensePage() {
 
     async function loadUser() {
       try {
-        const currentUser = await getCurrentUser();
+        const [currentUser, categoriesResponse] = await Promise.all([
+          getCurrentUser(),
+          listCategories()
+        ]);
         if (!cancelled) {
           setUser(currentUser);
+          setCategories(categoriesResponse?.data || []);
           if (currentUser.role === "reviewer") {
             setError("Forbidden: reviewers cannot create expenses.");
           }
@@ -87,7 +93,8 @@ export default function NewExpensePage() {
         currency: form.currency,
         merchant: form.merchant,
         description: form.description,
-        incurred_on: form.incurred_on
+        incurred_on: form.incurred_on,
+        category_id: form.category_id || null
       });
       router.push(`/expenses/${response.data.id}`);
     } catch (err) {
@@ -160,6 +167,21 @@ export default function NewExpensePage() {
               value={form.description}
               onChange={(event) => setField("description", event.target.value)}
             />
+
+            <Input
+              as="select"
+              id="category_id"
+              label="Category (optional)"
+              value={form.category_id}
+              onChange={(event) => setField("category_id", event.target.value)}
+            >
+              <option value="">No category</option>
+              {categories.map((category) => (
+                <option key={category.id} value={String(category.id)}>
+                  {category.name}
+                </option>
+              ))}
+            </Input>
 
             <Input
               id="incurred_on"

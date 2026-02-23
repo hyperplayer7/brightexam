@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Button from "./Button";
 import { logout } from "../lib/api";
@@ -29,6 +30,24 @@ export default function TopNav({ user }) {
       <div>
         <p className="text-xs font-semibold uppercase tracking-wide text-muted">Expense Tracker</p>
         {user ? <p className="text-sm text-text">{user.email} ({user.role})</p> : null}
+        {user ? (
+          <nav className="mt-2 flex flex-wrap gap-2 text-sm">
+            <Link
+              href="/expenses"
+              className="rounded-md border border-border px-2 py-1 text-text transition hover:bg-accent/20"
+            >
+              Expenses
+            </Link>
+            {user.role === "reviewer" ? (
+              <Link
+                href="/categories"
+                className="rounded-md border border-border px-2 py-1 text-text transition hover:bg-accent/20"
+              >
+                Categories
+              </Link>
+            ) : null}
+          </nav>
+        ) : null}
       </div>
 
       <div className="flex items-end gap-2">

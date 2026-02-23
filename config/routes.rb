@@ -4,6 +4,8 @@ Rails.application.routes.draw do
     post "logout", to: "sessions#destroy"
     get "me", to: "sessions#me"
 
+    resources :categories, only: %i[index create]
+
     resources :expenses, only: %i[index show create update destroy] do
       collection do
         get :summary

@@ -27,3 +27,7 @@ reviewer.password = "password"
 reviewer.password_confirmation = "password"
 reviewer.role = :reviewer
 reviewer.save!
+
+%w[Transport Meals Supplies].each do |name|
+  Category.find_or_create_by!(name: name)
+end

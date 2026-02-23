@@ -7,7 +7,7 @@ import Button from "../../../../components/Button";
 import Input from "../../../../components/Input";
 import TopNav from "../../../../components/TopNav";
 import { getCurrentUser } from "../../../../lib/auth";
-import { getExpense, updateExpense } from "../../../../lib/api";
+import { getExpense, listCategories, updateExpense } from "../../../../lib/api";
 
 const CURRENCY_OPTIONS = ["PHP", "USD"];
 
@@ -28,12 +28,14 @@ export default function EditExpensePage() {
 
   const [user, setUser] = useState(null);
   const [expense, setExpense] = useState(null);
+  const [categories, setCategories] = useState([]);
   const [form, setForm] = useState({
     amount: "",
     currency: "PHP",
     merchant: "",
     description: "",
-    incurred_on: ""
+    incurred_on: "",
+    category_id: ""
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -46,9 +48,10 @@ export default function EditExpensePage() {
       try {
         setLoading(true);
         setError("");
-        const [currentUser, expenseResponse] = await Promise.all([
+        const [currentUser, expenseResponse, categoriesResponse] = await Promise.all([
           getCurrentUser(),
-          getExpense(expenseId)
+          getExpense(expenseId),
+          listCategories()
         ]);
 
         if (cancelled) return;
@@ -56,12 +59,14 @@ export default function EditExpensePage() {
         const data = expenseResponse?.data;
         setUser(currentUser);
         setExpense(data);
+        setCategories(categoriesResponse?.data || []);
         setForm({
           amount: toAmount(data.amount_cents),
           currency: data.currency || "PHP",
           merchant: data.merchant || "",
           description: data.description || "",
-          incurred_on: data.incurred_on || ""
+          incurred_on: data.incurred_on || "",
+          category_id: data?.category?.id ? String(data.category.id) : ""
         });
       } catch (err) {
         if (!cancelled) {
@@ -107,6 +112,7 @@ export default function EditExpensePage() {
         merchant: form.merchant,
         description: form.description,
         incurred_on: form.incurred_on,
+        category_id: form.category_id || null,
         lock_version: expense.lock_version
       });
       router.push(`/expenses/${expenseId}`);
@@ -188,6 +194,21 @@ export default function EditExpensePage() {
               value={form.description}
               onChange={(event) => setField("description", event.target.value)}
             />
+
+            <Input
+              as="select"
+              id="category_id"
+              label="Category (optional)"
+              value={form.category_id}
+              onChange={(event) => setField("category_id", event.target.value)}
+            >
+              <option value="">No category</option>
+              {categories.map((category) => (
+                <option key={category.id} value={String(category.id)}>
+                  {category.name}
+                </option>
+              ))}
+            </Input>
 
             <Input
               id="incurred_on"

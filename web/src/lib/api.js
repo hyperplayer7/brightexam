@@ -63,8 +63,23 @@ export function listExpenses(params = {}) {
     query.set("status", String(params.status));
   }
 
+  if (params.category_id !== undefined && params.category_id !== null && params.category_id !== "") {
+    query.set("category_id", String(params.category_id));
+  }
+
   const suffix = query.toString() ? `?${query.toString()}` : "";
   return request(`/api/expenses${suffix}`);
+}
+
+export function listCategories() {
+  return request("/api/categories");
+}
+
+export function createCategory(name) {
+  return request("/api/categories", {
+    method: "POST",
+    body: JSON.stringify({ name })
+  });
 }
 
 export function getExpensesSummary() {

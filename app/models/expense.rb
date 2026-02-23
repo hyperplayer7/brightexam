@@ -1,6 +1,7 @@
 class Expense < ApplicationRecord
   belongs_to :user
   belongs_to :reviewer, class_name: "User", optional: true
+  belongs_to :category, optional: true
   has_many :audit_logs, class_name: "ExpenseAuditLog", dependent: :nullify
 
   enum :status, {
