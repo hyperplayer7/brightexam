@@ -83,3 +83,4 @@ Thumbs.db
 !web/package-lock.json
 !web/yarn.lock
 config/master.key
+config/credentials.yml.enc
