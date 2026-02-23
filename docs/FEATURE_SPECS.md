@@ -1,97 +1,128 @@
-# Feature Specs
+# Feature Specs (Current Implementation)
 
-## Scope
-Expense Tracker supports two roles:
+Source of truth: Rails routes/controllers/policies/models/services, frontend pages/components, and `db/schema.rb`.
+
+## Roles
+
 - `employee`
 - `reviewer`
 
-Primary entities:
-- `User`
-- `Expense`
+## Implemented Backend Features
 
-## User Stories and Acceptance Criteria
+### Authentication / Session
+- `POST /api/login`
+- `POST /api/logout`
+- `GET /api/me`
+- Cookie-based session auth with `HttpOnly` session cookie
 
-### Employee stories
-1. As an employee, I can log in and view only my expenses.
-- Given I am authenticated as an employee
-- When I open the expenses list
-- Then I only see expenses where `expense.user_id == current_user.id`
+### Expenses (CRUD + Workflow)
+- List expenses (`GET /api/expenses`) with:
+  - policy-scoped visibility
+  - optional `status` filter
+  - optional `category_id` filter
+  - server pagination
+- Expense detail (`GET /api/expenses/:id`)
+- Create draft expense (`POST /api/expenses`) for employees only
+- Update expense (`PATCH /api/expenses/:id`) for owner on drafted expenses only
+- Delete expense (`DELETE /api/expenses/:id`) for owner on drafted expenses only
+- Submit expense (`POST /api/expenses/:id/submit`)
+- Approve expense (`POST /api/expenses/:id/approve`)
+- Reject expense (`POST /api/expenses/:id/reject`) with `rejection_reason`
 
-2. As an employee, I can create a draft expense.
-- Given I am authenticated as an employee
-- When I submit valid expense input
-- Then an expense is created with status `drafted`
+### Summary Analytics
+- `GET /api/expenses/summary`
+- Policy-scoped by role (employee own data / reviewer all data)
+- Returns:
+  - all-time count and totals by currency
+  - counts by status
+  - monthly aggregates (month/currency/count/amount_cents)
 
-3. As an employee, I can edit or delete only my drafted expense.
-- Given I own an expense and its status is `drafted`
-- When I update or delete it
-- Then the action succeeds
-- And if status is not `drafted`, the action is forbidden
+### Audit Logs
+- Expense actions are persisted in `expense_audit_logs`
+- `GET /api/expenses/:id/audit_logs` returns logs for an authorized expense
+- Audit logs remain after expense deletion (`expense_id` nullable with FK `on_delete: :nullify`)
 
-4. As an employee, I can submit only my drafted expense.
-- Given I own an expense and it is `drafted`
-- When I call submit
-- Then status changes to `submitted`
-- And `submitted_at` is set
+### Categories
+- `GET /api/categories` for any authenticated user
+- `POST /api/categories` reviewer-only
+- Category names are normalized (trimmed) and unique (case-insensitive app validation)
 
-### Reviewer stories
-1. As a reviewer, I can log in and view all expenses.
-- Given I am authenticated as a reviewer
-- When I open the expenses list
-- Then I can see all expenses
+### User Role Management
+- `GET /api/users` reviewer-only
+- `PATCH /api/users/:id/role` reviewer-only
+- Allowed roles validated against `User.roles.keys`
+- Reviewer cannot change their own role (returns `422`)
 
-2. As a reviewer, I can approve submitted expenses.
-- Given an expense is `submitted`
-- And I am a reviewer
-- When I approve it
-- Then status changes to `approved`
-- And `reviewed_at` and `reviewer_id` are set
+## Implemented Frontend Features
 
-3. As a reviewer, I can reject submitted expenses with a reason.
-- Given an expense is `submitted`
-- And I am a reviewer
-- When I reject with `rejection_reason`
-- Then status changes to `rejected`
-- And `reviewed_at`, `reviewer_id`, and `rejection_reason` are set
+### Shared UI / Navigation
+- Header navigation with:
+  - account email/role display
+  - theme selector
+  - logout button
+- Reviewer-only nav links for:
+  - Categories
+  - Users
 
-4. As a reviewer, I cannot create expenses.
-- Given I am authenticated as a reviewer
-- When I attempt to create an expense
-- Then access is forbidden by policy
+### Theme System
+- Themes: `light`, `dark`, `stephens`, `up`
+- Implemented using CSS variables + `data-theme` attribute
+- Stored in `localStorage`
+- Defaults to stored theme, else prefers dark mode, else light
 
-## Expense State Machine
+### Expenses List UI (`/expenses`)
+- Fetches current user, expenses, categories, and summary
+- Filters:
+  - status (server-side)
+  - category (server-side)
+  - search by merchant/description (client-side, current page only)
+- Pagination controls using API pagination response
+- Summary cards for all-time and current-month totals
 
-```text
-drafted -> submitted -> approved
-                   -> rejected
-```
+### Expense Detail UI (`/expenses/:id`)
+- Displays expense details, status, reviewer, category
+- Displays audit logs
+- Role/status-based actions:
+  - owner employee draft: edit/delete/submit
+  - reviewer submitted: approve/reject
 
-Transition constraints:
-- `drafted -> submitted`: owner only
-- `submitted -> approved`: reviewer only
-- `submitted -> rejected`: reviewer only, rejection reason required
-- No transition service exists for moving `approved` or `rejected` to other states
+### Expense Create/Edit UI
+- Create draft page (`/expenses/new`) for employees
+- Edit page (`/expenses/:id/edit`) for owner drafted expense only
+- Category selection in forms (optional)
+- Uses `lock_version` on update (optimistic locking)
 
-## Business Rules
+### Categories UI (`/categories`)
+- Reviewer-only page (frontend access gating + backend auth still applies)
+- Category list display
+- Add category form
+- Validation error display for create attempts
+- Created column is shown only if timestamp data is present in API payload
 
-Authentication:
-- Session cookie required for protected endpoints.
+### Users UI (`/users`)
+- Reviewer-only page (frontend access gating + backend auth still applies)
+- Users table with email/current role/created timestamp
+- Per-row role dropdown + save button
+- Success/error message per row
 
-Authorization:
-- `employee`
-  - can create expenses
-  - can view own expenses
-  - can show own expense
-  - can update/destroy/submit own expense only when `drafted`
-- `reviewer`
-  - can view all expenses
-  - can show any expense
-  - can approve/reject only when expense is `submitted`
-  - cannot create/update/destroy/submit employee expenses
+## Behavior Constraints (Implemented)
 
-Validation and transition rules:
-- `amount_cents` must be present and > 0
-- `incurred_on` must be present
-- submit requires `drafted`
-- approve requires `submitted` + reviewer actor
-- reject requires `submitted` + reviewer actor + `rejection_reason`
+- Reviewer cannot create expenses (policy + frontend UI guard)
+- Employee cannot approve/reject expenses
+- Employee cannot edit/delete/submit after submission
+- Reject requires nonblank `rejection_reason`
+- Expense ownership is backend-controlled (`current_user.expenses.new`)
+- Expense updates use optimistic locking (`lock_version`)
+
+## Known Current Mismatch (Implemented Code, Not Desired Behavior)
+
+- Frontend category create request body is `{ name }`
+- Backend category create endpoint expects `{ category: { name } }`
+- Result: category creation from current frontend may return `400` (`ParameterMissing`)
+
+## Optional Enhancements (Not Implemented; marked explicitly)
+
+- Backend validation for allowed currency values (frontend currently limits options only)
+- API versioning (e.g. `/api/v1`)
+- Automated frontend tests (component/e2e)
+- Shared API serializers / typed contracts between backend and frontend

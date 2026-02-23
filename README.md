@@ -1,54 +1,72 @@
 # Expense Tracker (Rails API + Next.js)
 
-This repository contains a full-stack Expense Tracker implementation with role-based workflows for employees and reviewers. Employees create and submit expenses; reviewers approve or reject submitted items with a reason.
+Expense Tracker is a full-stack app with a Rails API backend and a Next.js App Router frontend.
+It supports employee expense submission and reviewer approval/rejection workflows using cookie-based session authentication.
 
-The stack is split into a Rails API backend and a Next.js App Router frontend that consumes JSON endpoints using cookie-based authentication.
+## Architecture Overview
 
-## Documentation Bundle
+- Backend: Rails API-only app (`app/controllers/api/*`) with PostgreSQL, Pundit, Pagy, and RSpec
+- Frontend: Next.js App Router (`web/src/app/*`) with Tailwind CSS and client-side API calls
+- Auth: Rails session cookie (`HttpOnly`) + frontend `fetch(..., { credentials: "include" })`
+- Authorization: Pundit for expenses and users; category create uses a direct reviewer check
+- Audit trail: Expense actions are recorded in `expense_audit_logs`
 
-- [Feature Specs](docs/FEATURE_SPECS.md)
-- [API Reference](docs/API.md)
-- [Database Schema](docs/DB_SCHEMA.md)
-- [Trade-offs](docs/TRADE_OFFS.md)
-- [AI Usage Disclosure](docs/AI_USAGE.md)
+## Implemented Feature Summary (Current Code)
 
-## Tech Stack
+- Session auth endpoints: login / logout / me
+- Expense list/detail/create/edit/delete (role- and status-constrained)
+- Expense workflow transitions: submit / approve / reject
+- Expense audit log endpoint and UI display
+- Expense summary analytics endpoint and summary cards in frontend
+- Categories:
+  - list endpoint for authenticated users
+  - create endpoint for reviewers
+  - reviewer-facing categories page (list + add form)
+- User role management:
+  - reviewer-only users list endpoint
+  - reviewer-only role update endpoint
+  - reviewer-facing users page with per-row role save
+- Frontend filtering:
+  - server-side status/category filters
+  - client-side text search (merchant/description, current page only)
+- Theme system with 4 themes (`light`, `dark`, `stephens`, `up`)
+- Optimistic locking on expense updates via `lock_version`
 
-- Ruby on Rails (API-only)
-- PostgreSQL
-- Pundit
-- Pagy
-- RSpec
-- RuboCop (`rubocop-rails-omakase`)
-- Next.js (App Router, JavaScript)
-- Tailwind CSS
+## Roles and Permissions (Summary)
 
-## Repository Structure
+- `employee`
+  - can create expenses
+  - can view only own expenses
+  - can edit/delete/submit only own `drafted` expenses
+  - cannot approve/reject expenses
+  - cannot manage categories or user roles
+
+- `reviewer`
+  - can view all expenses
+  - can approve/reject `submitted` expenses
+  - cannot create/update/delete/submit employee expenses
+  - can create categories
+  - can list users and update user roles (except own role)
+
+## Workflow State Diagram
 
 ```text
-.
-├── app/ / config/ / db/ ...    # Rails API backend (current checkout location)
-├── web/                        # Next.js frontend
-└── docs/                       # Submission documentation bundle
+drafted -> submitted -> approved
+                   -> rejected
 ```
 
-Note: If your target environment uses `api/` for backend, treat the Rails root files in this repo as that backend source.
+Transition rules (backend-enforced):
+- `submit`: owner employee + expense is `drafted`
+- `approve`: reviewer + expense is `submitted`
+- `reject`: reviewer + expense is `submitted` + rejection reason required
 
-## macOS Setup
+## Setup (Verified Against Current App)
 
-### 1) Backend setup (Rails + PostgreSQL)
+### Backend (Rails API)
 
 Prerequisites:
-- Ruby (recommended via `rbenv` or `asdf`)
-- Bundler
+- Ruby + Bundler
 - PostgreSQL
-
-```bash
-brew install postgresql
-brew services start postgresql
-```
-
-Install and prepare backend:
 
 ```bash
 bundle install
@@ -58,9 +76,9 @@ bin/rails db:seed
 bin/rails s
 ```
 
-Backend URL: `http://localhost:3000`
+Backend URL (default): `http://localhost:3000`
 
-### 2) Frontend setup (Next.js)
+### Frontend (Next.js)
 
 ```bash
 cd web
@@ -68,43 +86,31 @@ npm install
 npm run dev
 ```
 
-Frontend URL: `http://localhost:3001` (or next available port)
+Frontend URL (default): `http://localhost:3001`
 
-## Seed/Test Users (Current Project Configuration)
+## Seeded Sample Users (`db/seeds.rb`)
 
-From `db/seeds.rb`:
+- `employee@test.com` / `password` (`employee`)
+- `reviewer@test.com` / `password` (`reviewer`)
+- `employee2@test.com` / `password` (`employee`)
+- `employee3@test.com` / `password` (`employee`)
+- `reviewer2@test.com` / `password` (`reviewer`)
 
-- `employee@test.com` / `password` (employee)
-- `reviewer@test.com` / `password` (reviewer)
-- `employee2@test.com` / `password` (employee)
-- `employee3@test.com` / `password` (employee)
-- `reviewer2@test.com` / `password` (reviewer)
+Seeded categories:
+- `Transport`
+- `Meals`
+- `Supplies`
 
-## Manual Test Plan
+## Test + Lint Commands
 
-### Employee flow
-1. Login as `employee@test.com`.
-2. Create a new expense draft.
-3. Edit the draft expense.
-4. Submit the draft.
-5. Confirm status changes to `submitted`.
-
-### Reviewer flow
-1. Logout and login as `reviewer@test.com`.
-2. Open a submitted expense.
-3. Approve it, or reject with a rejection reason.
-4. Confirm final status (`approved`/`rejected`) and reviewer metadata.
-
-## Run Tests and Lint
-
-Backend (Rails):
+Backend:
 
 ```bash
 bundle exec rspec
 bundle exec rubocop
 ```
 
-Frontend (Next.js):
+Frontend:
 
 ```bash
 cd web
@@ -112,26 +118,43 @@ npm run build
 npm run lint
 ```
 
-## API Summary
+## Theme System Notes (Frontend)
 
-Auth:
-- `POST /api/login`
-- `POST /api/logout`
-- `GET /api/me`
+- Theme selection is available in the header nav.
+- Themes are stored in `localStorage` (`theme` key).
+- Supported themes: `light`, `dark`, `stephens`, `up`.
+- Theme values are applied through CSS variables on `document.documentElement.dataset.theme`.
 
-Expenses:
-- `GET /api/expenses`
-- `GET /api/expenses/summary`
-- `GET /api/expenses/:id`
-- `POST /api/expenses`
-- `PATCH /api/expenses/:id`
-- `DELETE /api/expenses/:id`
-- `POST /api/expenses/:id/submit`
-- `POST /api/expenses/:id/approve`
-- `POST /api/expenses/:id/reject`
+## Pagination Notes
 
-Categories:
-- `GET /api/categories`
-- `POST /api/categories` (reviewer only)
+- Expense list pagination is server-driven (`GET /api/expenses?page=...`)
+- Current implementation returns **5 expenses per page** (controller passes `limit: 5`)
+- Frontend renders Previous/Next controls using the API `pagination` object
+- Frontend search is applied **after** pagination on the current page only
 
-See full details in [docs/API.md](docs/API.md).
+## Summary Analytics Notes
+
+- Frontend calls `GET /api/expenses/summary` (best-effort; UI continues if summary fails)
+- Summary is policy-scoped:
+  - employees see only their own totals
+  - reviewers see aggregate totals across users
+- Response includes:
+  - `all_time` count + totals by currency
+  - `by_status` counts
+  - `monthly` grouped totals/counts (last ~6 months window based on current month)
+
+## Authentication + CORS Notes
+
+- Rails API uses cookie-based session auth in API mode (cookies/session middleware re-enabled)
+- Frontend API client always sends `credentials: "include"`
+- CORS currently allows:
+  - `http://localhost:3001`
+  - `http://127.0.0.1:3001`
+
+## Current Known Integration Mismatch (Docs Reflecting Code)
+
+- Backend category create endpoint expects nested payload:
+  - `{ "category": { "name": "..." } }`
+- Current frontend `createCategory()` sends:
+  - `{ "name": "..." }`
+- This mismatch affects reviewer category creation unless one side is updated.

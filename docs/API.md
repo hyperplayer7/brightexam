@@ -1,22 +1,51 @@
-# API Reference
+# API Reference (Current Implementation)
 
-Source of truth: `config/routes.rb`, `app/controllers/application_controller.rb`, `app/controllers/api/*.rb`.
+Source of truth:
+- `config/routes.rb`
+- `app/controllers/application_controller.rb`
+- `app/controllers/api/*.rb`
+- `app/policies/*.rb`
+- `app/services/expenses/*.rb`
 
 Base URL (local): `http://localhost:3000`
 
-Auth model:
-- Session cookie (`HttpOnly`) set by login.
-- Protected endpoints require authenticated session.
+## Authentication Model
 
-Error envelope:
-- Common errors use: `{ "errors": ["..."] }`
-- Validation errors may return model full messages in the same `errors` array.
+- Rails session cookie auth (`HttpOnly`)
+- Frontend uses `fetch(..., { credentials: "include" })`
+- Protected endpoints require authenticated session (`authenticate_user!`)
+
+## Common Response Patterns
+
+### Success envelope (most endpoints)
+```json
+{ "data": ... }
+```
+
+### Error envelope
+```json
+{ "errors": ["..."] }
+```
+
+## Common Status Codes Used
+
+- `200 OK`
+- `201 Created`
+- `204 No Content`
+- `400 Bad Request` (e.g., missing required parameter wrapper)
+- `401 Unauthorized`
+- `403 Forbidden`
+- `404 Not Found`
+- `409 Conflict` (optimistic locking / stale object)
+- `422 Unprocessable Entity`
+
+---
 
 ## Auth Endpoints
 
 ### POST `/api/login`
-- Auth required: No
-- Role rules: Any user with valid credentials
+
+Auth required: No
 
 Request body:
 ```json
@@ -26,7 +55,7 @@ Request body:
 }
 ```
 
-Success response `200`:
+Success `200`:
 ```json
 {
   "data": {
@@ -37,38 +66,29 @@ Success response `200`:
 }
 ```
 
-Error cases:
+Errors:
 - `401` invalid credentials
 ```json
 { "errors": ["invalid_credentials"] }
 ```
 
----
-
 ### POST `/api/logout`
-- Auth required: Yes
-- Role rules: Any authenticated role
 
-Request body: none
+Auth required: Yes
 
-Success response `204`:
-- No body
+Success `204`: no body
 
-Error cases:
-- `401` not logged in
+Errors:
+- `401`
 ```json
 { "errors": ["unauthorized"] }
 ```
 
----
-
 ### GET `/api/me`
-- Auth required: Yes
-- Role rules: Any authenticated role
 
-Request body: none
+Auth required: Yes
 
-Success response `200`:
+Success `200`:
 ```json
 {
   "data": {
@@ -79,21 +99,22 @@ Success response `200`:
 }
 ```
 
-Error cases:
-- `401` not logged in
+Errors:
+- `401`
 ```json
 { "errors": ["unauthorized"] }
 ```
 
+---
+
 ## Category Endpoints
 
 ### GET `/api/categories`
-- Auth required: Yes
-- Role rules: any authenticated user
 
-Request body: none
+Auth required: Yes
+Role rules: any authenticated user
 
-Success response `200`:
+Success `200`:
 ```json
 {
   "data": [
@@ -104,19 +125,15 @@ Success response `200`:
 }
 ```
 
-Error cases:
-- `401` unauthenticated
-```json
-{ "errors": ["unauthorized"] }
-```
-
----
+Errors:
+- `401`
 
 ### POST `/api/categories`
-- Auth required: Yes
-- Role rules: reviewer only
 
-Request body:
+Auth required: Yes
+Role rules: reviewer only (manual check in controller)
+
+Actual request body shape (backend expects nested `category`):
 ```json
 {
   "category": {
@@ -125,32 +142,122 @@ Request body:
 }
 ```
 
-Success response `201`:
+Success `201`:
 ```json
 {
-  "data": { "id": 4, "name": "Internet" }
+  "data": {
+    "id": 4,
+    "name": "Internet"
+  }
 }
 ```
 
-Error cases:
+Errors:
 - `401` unauthenticated
-- `403` forbidden
-- `422` validation failure
+- `403` non-reviewer
+- `400` missing `category` param wrapper (ParameterMissing)
+- `422` validation errors (e.g. duplicate name)
+
+Examples:
 ```json
 { "errors": ["unauthorized"] }
 { "errors": ["forbidden"] }
+{ "errors": ["param is missing or the value is empty or invalid: category"] }
 { "errors": ["Name has already been taken"] }
 ```
 
+---
+
+## User Management / Role Assignment Endpoints
+
+### GET `/api/users`
+
+Auth required: Yes
+Role rules: reviewer only (Pundit `UserPolicy#index?`)
+
+Success `200`:
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "email": "employee@test.com",
+      "role": "employee",
+      "created_at": "2026-02-20T10:00:00.000Z"
+    }
+  ]
+}
+```
+
+Errors:
+- `401`
+- `403`
+
+### PATCH `/api/users/:id/role`
+
+Auth required: Yes
+Role rules: reviewer only (Pundit `UserPolicy#update_role?`)
+
+Request body:
+```json
+{
+  "role": "reviewer"
+}
+```
+
+Allowed roles:
+- `employee`
+- `reviewer`
+
+Success `200`:
+```json
+{
+  "data": {
+    "id": 2,
+    "email": "employee@test.com",
+    "role": "reviewer"
+  }
+}
+```
+
+Errors:
+- `401` unauthenticated
+- `403` non-reviewer
+- `404` user not found
+- `422` invalid role
+- `422` reviewer attempting to change own role
+
+Examples:
+```json
+{ "errors": ["forbidden"] }
+{ "errors": ["not_found"] }
+{ "errors": ["role must be one of: employee, reviewer"] }
+{ "errors": ["cannot_change_own_role"] }
+```
+
+---
+
 ## Expense Endpoints
 
-Expense payload shape used by controllers:
+## Expense Payload Shape (Controller Output)
+
+Returned by expense list/detail and workflow endpoints:
+
 ```json
 {
   "id": 1,
   "user_id": 1,
   "reviewer_id": null,
-  "category": { "id": 1, "name": "Transport" },
+  "user": {
+    "id": 1,
+    "email": "employee@test.com",
+    "role": "employee"
+  },
+  "reviewer": null,
+  "category": {
+    "id": 3,
+    "name": "Transport"
+  },
   "amount_cents": 150000,
   "currency": "PHP",
   "description": "Flight to client site",
@@ -166,19 +273,26 @@ Expense payload shape used by controllers:
 }
 ```
 
+Notes:
+- `reviewer` and `category` may be `null`
+- `user`, `reviewer`, and `category` are nested objects (when present)
+
 ### GET `/api/expenses`
-- Auth required: Yes
-- Role rules:
-  - employee: own expenses only
-  - reviewer: all expenses
-- Query params:
-  - `status` (optional; only applied if valid enum key)
-  - `category_id` (optional; filter by category)
-  - `page` (optional; Pagy)
 
-Request body: none
+Auth required: Yes
+Role rules:
+- employee: own expenses only (`policy_scope`)
+- reviewer: all expenses (`policy_scope`)
 
-Success response `200`:
+Query params (optional):
+- `page`
+- `status` (applied only if valid enum value)
+- `category_id`
+
+Current server page size:
+- `5` per page (controller-level `limit: 5`)
+
+Success `200`:
 ```json
 {
   "data": [
@@ -186,10 +300,13 @@ Success response `200`:
       "id": 1,
       "user_id": 1,
       "reviewer_id": null,
-      "amount_cents": 150000,
-      "currency": "PHP",
-      "description": "Flight to client site",
-      "merchant": "Airline",
+      "user": { "id": 1, "email": "employee@test.com", "role": "employee" },
+      "reviewer": null,
+      "category": null,
+      "amount_cents": 1000,
+      "currency": "USD",
+      "description": "Ride",
+      "merchant": "Grab",
       "incurred_on": "2026-02-20",
       "status": "drafted",
       "submitted_at": null,
@@ -204,28 +321,22 @@ Success response `200`:
     "page": 1,
     "pages": 1,
     "count": 1,
-    "items": 20
+    "items": 5
   }
 }
 ```
 
-Error cases:
-- `401` unauthenticated
-```json
-{ "errors": ["unauthorized"] }
-```
-
----
+Errors:
+- `401`
 
 ### GET `/api/expenses/summary`
-- Auth required: Yes
-- Role rules:
-  - employee: own expenses only (via policy scope)
-  - reviewer: all expenses (via policy scope)
 
-Request body: none
+Auth required: Yes
+Role rules:
+- employee: own expenses only (`policy_scope`)
+- reviewer: all expenses (`policy_scope`)
 
-Success response `200`:
+Success `200`:
 ```json
 {
   "data": {
@@ -251,60 +362,30 @@ Success response `200`:
 }
 ```
 
-Error cases:
-- `401` unauthenticated
-```json
-{ "errors": ["unauthorized"] }
-```
-
----
+Errors:
+- `401`
 
 ### GET `/api/expenses/:id`
-- Auth required: Yes
-- Role rules:
-  - employee: own expense only
-  - reviewer: any expense
 
-Request body: none
+Auth required: Yes
+Role rules:
+- employee: own expense only
+- reviewer: any expense
 
-Success response `200`:
+Success `200`:
 ```json
-{
-  "data": {
-    "id": 1,
-    "user_id": 1,
-    "reviewer_id": null,
-    "amount_cents": 150000,
-    "currency": "PHP",
-    "description": "Flight to client site",
-    "merchant": "Airline",
-    "incurred_on": "2026-02-20",
-    "status": "drafted",
-    "submitted_at": null,
-    "reviewed_at": null,
-    "rejection_reason": null,
-    "lock_version": 0,
-    "created_at": "2026-02-20T10:00:00.000Z",
-    "updated_at": "2026-02-20T10:00:00.000Z"
-  }
-}
+{ "data": { "...": "expense payload shape above" } }
 ```
 
-Error cases:
-- `401` unauthenticated
-- `403` forbidden by policy
-- `404` expense not found
-```json
-{ "errors": ["unauthorized"] }
-{ "errors": ["forbidden"] }
-{ "errors": ["not_found"] }
-```
-
----
+Errors:
+- `401`
+- `403`
+- `404`
 
 ### POST `/api/expenses`
-- Auth required: Yes
-- Role rules: employee only
+
+Auth required: Yes
+Role rules: employee only (`ExpensePolicy#create?`)
 
 Request body:
 ```json
@@ -320,207 +401,126 @@ Request body:
 }
 ```
 
-Success response `201`:
+Notes:
+- Backend ignores client ownership fields because payload is built from `current_user.expenses.new(...)`
+- Strong params do not permit `user_id`, `reviewer_id`, `status`, `submitted_at`, `reviewed_at`
+
+Success `201`:
 ```json
-{
-  "data": {
-    "id": 1,
-    "user_id": 1,
-    "reviewer_id": null,
-    "amount_cents": 150000,
-    "currency": "PHP",
-    "description": "Flight to client site",
-    "merchant": "Airline",
-    "incurred_on": "2026-02-20",
-    "status": "drafted",
-    "submitted_at": null,
-    "reviewed_at": null,
-    "rejection_reason": null,
-    "lock_version": 0,
-    "created_at": "2026-02-20T10:00:00.000Z",
-    "updated_at": "2026-02-20T10:00:00.000Z"
-  }
-}
+{ "data": { "...": "expense payload shape above" } }
 ```
 
-Error cases:
-- `401` unauthenticated
-- `403` reviewer attempting create
-- `422` validation failure
-```json
-{ "errors": ["unauthorized"] }
-{ "errors": ["forbidden"] }
-{ "errors": ["Amount cents must be greater than 0"] }
-```
-
----
+Errors:
+- `401`
+- `403`
+- `400` missing `expense` wrapper
+- `422` validation errors
 
 ### PATCH `/api/expenses/:id`
-- Auth required: Yes
-- Role rules: owner employee and status must be `drafted`
+
+Auth required: Yes
+Role rules:
+- owner employee + drafted expense only (`ExpensePolicy#update?`)
 
 Request body:
 ```json
 {
   "expense": {
-    "amount_cents": 175000,
-    "currency": "PHP",
     "description": "Updated description",
-    "merchant": "Airline",
-    "incurred_on": "2026-02-20",
-    "category_id": 2,
     "lock_version": 0
   }
 }
 ```
 
-Success response `200`:
+Permitted attributes:
+- `amount_cents`
+- `currency`
+- `description`
+- `merchant`
+- `incurred_on`
+- `category_id`
+- `lock_version`
+
+Success `200`:
 ```json
-{
-  "data": {
-    "id": 1,
-    "user_id": 1,
-    "reviewer_id": null,
-    "amount_cents": 175000,
-    "currency": "PHP",
-    "description": "Updated description",
-    "merchant": "Airline",
-    "incurred_on": "2026-02-20",
-    "status": "drafted",
-    "submitted_at": null,
-    "reviewed_at": null,
-    "rejection_reason": null,
-    "lock_version": 1,
-    "created_at": "2026-02-20T10:00:00.000Z",
-    "updated_at": "2026-02-20T10:05:00.000Z"
-  }
-}
+{ "data": { "...": "expense payload shape above" } }
 ```
 
-Error cases:
-- `401` unauthenticated
-- `403` forbidden by policy
-- `404` not found
-- `422` validation failure
-```json
-{ "errors": ["unauthorized"] }
-{ "errors": ["forbidden"] }
-{ "errors": ["not_found"] }
-{ "errors": ["Amount cents must be greater than 0"] }
-```
+Errors:
+- `401`
+- `403`
+- `404`
+- `400` missing `expense` wrapper
+- `409` stale optimistic lock (`stale_object`)
+- `422` validation errors
 
----
+Example `409`:
+```json
+{ "errors": ["stale_object"] }
+```
 
 ### DELETE `/api/expenses/:id`
-- Auth required: Yes
-- Role rules: owner employee and status must be `drafted`
 
-Request body: none
+Auth required: Yes
+Role rules:
+- owner employee + drafted expense only (`ExpensePolicy#destroy?`)
 
-Success response `204`:
-- No body
+Success `204`: no body
 
-Error cases:
-- `401` unauthenticated
-- `403` forbidden
-- `404` not found
-```json
-{ "errors": ["unauthorized"] }
-{ "errors": ["forbidden"] }
-{ "errors": ["not_found"] }
-```
-
----
+Errors:
+- `401`
+- `403`
+- `404`
 
 ### POST `/api/expenses/:id/submit`
-- Auth required: Yes
-- Role rules: owner employee and status must be `drafted`
+
+Auth required: Yes
+Role rules:
+- owner employee + drafted expense only (`ExpensePolicy#submit?`)
 
 Request body: none
 
-Success response `200`:
+Success `200`:
 ```json
-{
-  "data": {
-    "id": 1,
-    "user_id": 1,
-    "reviewer_id": null,
-    "amount_cents": 150000,
-    "currency": "PHP",
-    "description": "Flight to client site",
-    "merchant": "Airline",
-    "incurred_on": "2026-02-20",
-    "status": "submitted",
-    "submitted_at": "2026-02-20T11:00:00.000Z",
-    "reviewed_at": null,
-    "rejection_reason": null,
-    "lock_version": 1,
-    "created_at": "2026-02-20T10:00:00.000Z",
-    "updated_at": "2026-02-20T11:00:00.000Z"
-  }
-}
+{ "data": { "...": "expense payload shape above" } }
 ```
 
-Error cases:
-- `401` unauthenticated
-- `403` forbidden
-- `404` not found
-- `422` invalid transition
-```json
-{ "errors": ["unauthorized"] }
-{ "errors": ["forbidden"] }
-{ "errors": ["not_found"] }
-{ "errors": ["Status must be drafted to submit"] }
-```
-
----
+Errors:
+- `401`
+- `403`
+- `404`
+- `422` if transition service validation fails (TBD in request path due policy usually blocking first)
 
 ### POST `/api/expenses/:id/approve`
-- Auth required: Yes
-- Role rules: reviewer only, expense must be `submitted`
+
+Auth required: Yes
+Role rules:
+- reviewer + submitted expense only (`ExpensePolicy#approve?`)
 
 Request body: none
 
-Success response `200`:
+Success `200`:
 ```json
-{
-  "data": {
-    "id": 1,
-    "user_id": 1,
-    "reviewer_id": 2,
-    "amount_cents": 150000,
-    "currency": "PHP",
-    "description": "Flight to client site",
-    "merchant": "Airline",
-    "incurred_on": "2026-02-20",
-    "status": "approved",
-    "submitted_at": "2026-02-20T11:00:00.000Z",
-    "reviewed_at": "2026-02-20T12:00:00.000Z",
-    "rejection_reason": null,
-    "lock_version": 2,
-    "created_at": "2026-02-20T10:00:00.000Z",
-    "updated_at": "2026-02-20T12:00:00.000Z"
-  }
-}
+{ "data": { "...": "expense payload shape above" } }
 ```
 
-Error cases:
-- `401` unauthenticated
-- `403` forbidden
-- `404` not found
-- `422` invalid transition
-```json
-{ "errors": ["unauthorized"] }
-{ "errors": ["forbidden"] }
-{ "errors": ["not_found"] }
-{ "errors": ["Status must be submitted to approve"] }
-```
+Behavior:
+- sets `status = approved`
+- sets `reviewed_at`
+- sets `reviewer_id` to current reviewer
+- clears `rejection_reason`
 
----
+Errors:
+- `401`
+- `403`
+- `404`
+- `422` if transition service validation fails (TBD in request path due policy usually blocking first)
 
 ### POST `/api/expenses/:id/reject`
-- Auth required: Yes
-- Role rules: reviewer only, expense must be `submitted`
+
+Auth required: Yes
+Role rules:
+- reviewer + submitted expense only (`ExpensePolicy#reject?`)
 
 Request body:
 ```json
@@ -529,45 +529,96 @@ Request body:
 }
 ```
 
-Success response `200`:
+Success `200`:
+```json
+{ "data": { "...": "expense payload shape above" } }
+```
+
+Behavior:
+- sets `status = rejected`
+- sets `reviewed_at`
+- sets `reviewer_id` to current reviewer
+- stores `rejection_reason`
+
+Errors:
+- `401`
+- `403`
+- `404`
+- `422` validation error (e.g. missing rejection reason)
+
+### GET `/api/expenses/:id/audit_logs`
+
+Auth required: Yes
+Role rules:
+- same as expense `show?` (owner employee or reviewer)
+
+Success `200`:
 ```json
 {
-  "data": {
-    "id": 1,
-    "user_id": 1,
-    "reviewer_id": 2,
-    "amount_cents": 150000,
-    "currency": "PHP",
-    "description": "Flight to client site",
-    "merchant": "Airline",
-    "incurred_on": "2026-02-20",
-    "status": "rejected",
-    "submitted_at": "2026-02-20T11:00:00.000Z",
-    "reviewed_at": "2026-02-20T12:00:00.000Z",
-    "rejection_reason": "Missing receipt",
-    "lock_version": 2,
-    "created_at": "2026-02-20T10:00:00.000Z",
-    "updated_at": "2026-02-20T12:00:00.000Z"
-  }
+  "data": [
+    {
+      "id": 10,
+      "action": "expense.submitted",
+      "from_status": "drafted",
+      "to_status": "submitted",
+      "metadata": {},
+      "actor": {
+        "id": 1,
+        "email": "employee@test.com",
+        "role": "employee"
+      },
+      "created_at": "2026-02-20T10:05:00.000Z"
+    }
+  ]
 }
 ```
 
-Error cases:
-- `401` unauthenticated
-- `403` forbidden
-- `404` not found
-- `422` invalid transition or missing rejection reason
-```json
-{ "errors": ["unauthorized"] }
-{ "errors": ["forbidden"] }
-{ "errors": ["not_found"] }
-{ "errors": ["Rejection reason can't be blank"] }
-```
+Notes:
+- `metadata` may contain:
+  - `previous_changes` (expense update)
+  - `snapshot` (expense delete)
+  - `rejection_reason` (reject action)
+- Audit logs are ordered ascending by `created_at`
 
-## Non-business health endpoint
+Errors:
+- `401`
+- `403`
+- `404`
+
+---
+
+## Audit Logging (Behavior Summary)
+
+Audit logs are created for:
+- expense create (`expense.created`)
+- expense update (`expense.updated`)
+- expense delete (`expense.deleted`)
+- submit (`expense.submitted`)
+- approve (`expense.approved`)
+- reject (`expense.rejected`)
+
+Expense deletion does not remove audit records; `expense_id` is nulled by FK behavior (`on_delete: :nullify`).
+
+---
+
+## CORS / Session Notes (Current Config)
+
+- Allowed CORS origins:
+  - `http://localhost:3001`
+  - `http://127.0.0.1:3001`
+- Credentials enabled (`credentials: true`)
+- Session cookie uses `HttpOnly` and `same_site: :lax`
+
+If deployment origin differs from local defaults, update CORS and frontend API base URL accordingly.
+
+---
+
+## Health Endpoint
 
 ### GET `/up`
-- Auth required: No
-- Role rules: N/A
-- Response: Rails health check payload (framework-defined)
-- Notes: response shape `TBD` (not defined in local app controllers)
+
+Auth required: No
+
+Response:
+- Rails health check response (framework-defined)
+- Exact response body shape: `TBD` (not implemented in local app controllers)
