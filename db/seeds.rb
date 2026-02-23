@@ -1,32 +1,24 @@
-employee = User.find_or_initialize_by(email: "employee@test.com")
-employee.password = "password"
-employee.password_confirmation = "password"
-employee.role = :employee
-employee.save!
+# db/seeds.rb
 
-reviewer = User.find_or_initialize_by(email: "reviewer@test.com")
-reviewer.password = "password"
-reviewer.password_confirmation = "password"
-reviewer.role = :reviewer
-reviewer.save!
+def seed_user!(email:, role:, password: "password")
+  user = User.find_or_initialize_by(email: email)
+  user.role = role
 
-employee = User.find_or_initialize_by(email: "employee2@test.com")
-employee.password = "password"
-employee.password_confirmation = "password"
-employee.role = :employee
-employee.save!
+  # Only set password on first create (so deploys don't keep changing it)
+  if user.new_record?
+    user.password = password
+    user.password_confirmation = password
+  end
 
-employee = User.find_or_initialize_by(email: "employee3@test.com")
-employee.password = "password"
-employee.password_confirmation = "password"
-employee.role = :employee
-employee.save!
+  user.save!
+end
 
-reviewer = User.find_or_initialize_by(email: "reviewer2@test.com")
-reviewer.password = "password"
-reviewer.password_confirmation = "password"
-reviewer.role = :reviewer
-reviewer.save!
+seed_user!(email: "employee@test.com", role: :employee)
+seed_user!(email: "employee2@test.com", role: :employee)
+seed_user!(email: "employee3@test.com", role: :employee)
+
+seed_user!(email: "reviewer@test.com", role: :reviewer)
+seed_user!(email: "reviewer2@test.com", role: :reviewer)
 
 %w[Transport Meals Supplies].each do |name|
   Category.find_or_create_by!(name: name)
