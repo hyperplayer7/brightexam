@@ -47,4 +47,4 @@ ENTRYPOINT ["/rails/bin/docker-entrypoint"]
 
 # Railway typically provides PORT; Rails should bind to 0.0.0.0 and use PORT.
 EXPOSE 80
-CMD ["./bin/rails", "server", "-b", "0.0.0.0", "-p", "${PORT:-80}"]
+CMD ["sh", "-lc", "./bin/rails server -b 0.0.0.0 -p ${PORT:-80}"]
