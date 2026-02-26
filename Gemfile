@@ -5,7 +5,7 @@ gem "pg", "~> 1.1"
 gem "puma", ">= 5.0"
 gem "bcrypt", "~> 3.1.7"
 gem "pundit", "~> 2.3"
-gem "pagy", "~> 9.3"
+gem "pagy", "~> 43.3"
 gem "rack-cors"
 
 gem "tzinfo-data", platforms: %i[ windows jruby ]
