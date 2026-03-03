@@ -2,6 +2,49 @@ const DEFAULT_API_BASE_URL =
   process.env.NODE_ENV === "production" ? "https://brightexam.onrender.com" : "http://localhost:3000";
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || DEFAULT_API_BASE_URL).replace(/\/$/, "");
 
+const ERROR_CODE_MESSAGES = {
+  invalid_credentials: "Invalid email or password.",
+  unauthorized: "Please log in to continue.",
+  forbidden: "You don't have access to do that.",
+  not_found: "Not found.",
+  stale_object: "This record was updated elsewhere. Refresh and try again."
+};
+
+function parseErrorDetails(response, bodyText) {
+  const contentType = response.headers.get("content-type") || "";
+  const bodyJson = contentType.includes("application/json") && bodyText ? JSON.parse(bodyText) : null;
+  const rawErrors = Array.isArray(bodyJson?.errors) ? bodyJson.errors : [];
+  const mappedErrors = rawErrors.map((item) => ERROR_CODE_MESSAGES[item] || String(item));
+
+  if (response.status === 422) {
+    if (mappedErrors.length > 0) {
+      return {
+        message: `Please fix the following: ${mappedErrors.join(" ")}`,
+        validationErrors: mappedErrors,
+        rawErrors,
+        bodyJson
+      };
+    }
+    return {
+      message: "Please check your input and try again.",
+      validationErrors: [],
+      rawErrors,
+      bodyJson
+    };
+  }
+
+  if (mappedErrors.length > 0) {
+    return { message: mappedErrors.join(" "), validationErrors: [], rawErrors, bodyJson };
+  }
+
+  return {
+    message: ERROR_CODE_MESSAGES[response.statusText?.toLowerCase?.()] || `API request failed (${response.status}).`,
+    validationErrors: [],
+    rawErrors,
+    bodyJson
+  };
+}
+
 async function request(path, options = {}) {
   const headers = { ...(options.headers || {}) };
   const hasBody = options.body !== undefined && options.body !== null;
@@ -18,12 +61,24 @@ async function request(path, options = {}) {
 
   if (!response.ok) {
     const bodyText = await response.text();
-    const message = `API request failed (${response.status}): ${bodyText || response.statusText}`;
-    const error = new Error(message);
+    let details;
+    try {
+      details = parseErrorDetails(response, bodyText);
+    } catch (_parseError) {
+      details = {
+        message: `API request failed (${response.status}).`,
+        validationErrors: [],
+        rawErrors: [],
+        bodyJson: null
+      };
+    }
+    const error = new Error(details.message);
     error.status = response.status;
     error.statusText = response.statusText;
-    error.body = bodyText;
+    error.body = details.bodyJson || bodyText;
     error.bodyText = bodyText;
+    error.validationErrors = details.validationErrors;
+    error.errors = details.rawErrors;
     throw error;
   }
 
@@ -69,6 +124,10 @@ export function listExpenses(params = {}) {
 
   if (params.category_id !== undefined && params.category_id !== null && params.category_id !== "") {
     query.set("category_id", String(params.category_id));
+  }
+
+  if (params.q !== undefined && params.q !== null && String(params.q).trim() !== "") {
+    query.set("q", String(params.q).trim());
   }
 
   const suffix = query.toString() ? `?${query.toString()}` : "";

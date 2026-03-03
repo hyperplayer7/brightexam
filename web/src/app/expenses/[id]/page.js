@@ -24,6 +24,63 @@ function formatDate(value) {
   return date.toLocaleString();
 }
 
+function formatCurrencyAmount(currency, amountCents) {
+  const amount = Number(amountCents || 0) / 100;
+  try {
+    return new Intl.NumberFormat("en-PH", {
+      style: "currency",
+      currency: currency || "PHP"
+    }).format(amount);
+  } catch (_error) {
+    return `${currency || "PHP"} ${amount.toFixed(2)}`;
+  }
+}
+
+function formatAuditMessage(log) {
+  if (!log) return "";
+
+  const previousChanges = log?.metadata?.previous_changes || {};
+  const currencyBefore = previousChanges?.currency?.[0] || "PHP";
+  const currencyAfter = previousChanges?.currency?.[1] || currencyBefore;
+
+  if (log.action === "expense.created") {
+    return "Expense created";
+  }
+
+  if (previousChanges?.status || (log.from_status && log.to_status && log.from_status !== log.to_status)) {
+    const from = previousChanges?.status?.[0] || log.from_status || "-";
+    const to = previousChanges?.status?.[1] || log.to_status || "-";
+    return `Status changed: ${from} -> ${to}`;
+  }
+
+  if (previousChanges?.amount_cents) {
+    const [fromAmount, toAmount] = previousChanges.amount_cents;
+    return `Amount changed: ${formatCurrencyAmount(currencyBefore, fromAmount)} -> ${formatCurrencyAmount(currencyAfter, toAmount)}`;
+  }
+
+  if (previousChanges?.category_name) {
+    const [fromCategory, toCategory] = previousChanges.category_name;
+    return `Category changed: ${fromCategory || "-"} -> ${toCategory || "-"}`;
+  }
+
+  if (previousChanges?.category) {
+    const [fromCategory, toCategory] = previousChanges.category;
+    return `Category changed: ${fromCategory || "-"} -> ${toCategory || "-"}`;
+  }
+
+  if (previousChanges?.category_id) {
+    const [fromCategory, toCategory] = previousChanges.category_id;
+    return `Category changed: ${fromCategory || "-"} -> ${toCategory || "-"}`;
+  }
+
+  if (log.action === "expense.submitted") return "Expense submitted";
+  if (log.action === "expense.approved") return "Expense approved";
+  if (log.action === "expense.rejected") return "Expense rejected";
+  if (log.action === "expense.deleted") return "Expense deleted";
+
+  return "";
+}
+
 export default function ExpenseDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -95,6 +152,26 @@ export default function ExpenseDetailPage() {
     loadAll();
   }, [expenseId]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.hash !== "#audit-logs") return;
+    const auditSection = document.getElementById("audit-logs");
+    if (auditSection) {
+      auditSection.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [auditLoading]);
+
+  function handleAuditLogsClick(event) {
+    if (typeof window === "undefined") return;
+    if (window.location.hash !== "#audit-logs") return;
+
+    event.preventDefault();
+    const auditSection = document.getElementById("audit-logs");
+    if (auditSection) {
+      auditSection.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
   async function handleDelete() {
     if (!window.confirm("Delete this draft expense?")) return;
 
@@ -161,9 +238,18 @@ export default function ExpenseDetailPage() {
       <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-text">Expense #{expenseId}</h1>
-          <Link href="/expenses" className="text-sm font-medium text-primary hover:text-primary/80">
-            Back
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="#audit-logs"
+              onClick={handleAuditLogsClick}
+              className="text-sm font-medium text-primary hover:text-primary/80"
+            >
+              Audit Logs
+            </Link>
+            <Link href="/expenses" className="text-sm font-medium text-primary hover:text-primary/80">
+              Back
+            </Link>
+          </div>
         </div>
 
         {loading ? <p className="text-sm text-muted">Loading expense...</p> : null}
@@ -230,14 +316,16 @@ export default function ExpenseDetailPage() {
         ) : null}
       </div>
 
-      <div id="audit" className="rounded-xl border border-border bg-surface p-6 shadow-sm">
+      <div id="audit-logs" className="rounded-xl border border-border bg-surface p-6 shadow-sm">
         <h2 className="mb-3 text-xl font-semibold text-text">Activity / Audit Logs</h2>
         {auditLoading ? <p className="text-sm text-muted">Loading audit logs...</p> : null}
         {auditError ? <p className="mb-4 text-sm font-medium text-badge-rejected-foreground">{auditError}</p> : null}
 
         {!auditLoading && !auditError ? (
           <div className="space-y-3">
-            {auditLogs.map((log) => (
+            {[...auditLogs]
+              .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime())
+              .map((log) => (
               <div key={log.id} className="rounded-lg border border-border p-3">
                 <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-muted">
                   <span>{formatDate(log.created_at)}</span>
@@ -246,12 +334,19 @@ export default function ExpenseDetailPage() {
                     Actor: {log.actor?.email || "-"} ({log.actor?.role || "-"})
                   </span>
                 </div>
-                <p className="mb-2 text-sm text-text">
-                  <span className="font-semibold">Status change:</span> {log.from_status || "-"} → {log.to_status || "-"}
-                </p>
-                {renderMetadata(log.metadata)}
+                {formatAuditMessage(log) ? (
+                  <p className="mb-2 text-sm text-text">{formatAuditMessage(log)}</p>
+                ) : (
+                  <pre className="mb-2 overflow-x-auto rounded bg-accent/25 p-2 text-xs text-text">
+                    {JSON.stringify(log.metadata || {}, null, 2)}
+                  </pre>
+                )}
+                <details>
+                  <summary className="cursor-pointer text-xs font-medium text-muted">Show raw JSON</summary>
+                  {renderMetadata(log.metadata)}
+                </details>
               </div>
-            ))}
+              ))}
             {auditLogs.length === 0 ? <p className="text-sm text-muted">No audit logs yet.</p> : null}
           </div>
         ) : null}

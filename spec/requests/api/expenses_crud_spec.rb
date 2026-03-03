@@ -69,6 +69,46 @@ RSpec.describe "Expenses CRUD", type: :request do
       # If your app allows reviewers to create expenses, change this to success.
       expect(response).to have_http_status(:forbidden)
     end
+
+    it "returns 422 for zero or negative amount_cents" do
+      login_as(email: employee.email, password: "password")
+
+      [ 0, -100 ].each do |amount_cents|
+        post "/api/expenses",
+             params: {
+               expense: {
+                 amount_cents: amount_cents,
+                 currency: "PHP",
+                 merchant: "Store",
+                 description: "Invalid amount",
+                 incurred_on: Date.current.to_s
+               }
+             }.to_json,
+             headers: { "CONTENT_TYPE" => "application/json" }
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(json.fetch("errors")).to be_an(Array)
+      end
+    end
+
+    it "returns 422 for future incurred_on" do
+      login_as(email: employee.email, password: "password")
+
+      post "/api/expenses",
+           params: {
+             expense: {
+               amount_cents: 100,
+               currency: "PHP",
+               merchant: "Store",
+               description: "Future date",
+               incurred_on: (Date.current + 1.day).to_s
+             }
+           }.to_json,
+           headers: { "CONTENT_TYPE" => "application/json" }
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(json.fetch("errors")).to be_an(Array)
+    end
   end
 
   describe "PATCH /api/expenses/:id" do
@@ -112,6 +152,34 @@ RSpec.describe "Expenses CRUD", type: :request do
             headers: { "CONTENT_TYPE" => "application/json" }
 
       expect(response).to have_http_status(:forbidden)
+    end
+
+    it "returns 422 when updating to invalid amount_cents or future incurred_on" do
+      login_as(email: employee.email, password: "password")
+
+      expense = Expense.create!(
+        user: employee,
+        amount_cents: 1000,
+        currency: "USD",
+        merchant: "Test",
+        description: "Old",
+        incurred_on: Date.current,
+        status: :drafted
+      )
+
+      patch "/api/expenses/#{expense.id}",
+            params: { expense: { amount_cents: 0 } }.to_json,
+            headers: { "CONTENT_TYPE" => "application/json" }
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(json.fetch("errors")).to be_an(Array)
+
+      patch "/api/expenses/#{expense.id}",
+            params: { expense: { incurred_on: (Date.current + 1.day).to_s } }.to_json,
+            headers: { "CONTENT_TYPE" => "application/json" }
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(json.fetch("errors")).to be_an(Array)
     end
   end
 

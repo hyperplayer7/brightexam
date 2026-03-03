@@ -15,10 +15,18 @@ class Expense < ApplicationRecord
   validates :incurred_on, presence: true
 
   before_validation :normalize_currency
+  validate :incurred_on_not_in_future
 
   private
 
   def normalize_currency
     self.currency = currency.to_s.upcase
+  end
+
+  def incurred_on_not_in_future
+    return if incurred_on.blank?
+    return if incurred_on <= Date.current
+
+    errors.add(:incurred_on, "must be today or earlier")
   end
 end

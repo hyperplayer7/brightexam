@@ -73,6 +73,22 @@ RSpec.describe "Expenses access control", type: :request do
       ids = json_response.fetch("data").map { |row| row.fetch("id") }
       expect(ids).to include(employee_expense.id, other_expense.id)
     end
+
+    it "filters expenses by q across merchant or description" do
+      cookie = login_and_capture_cookie(email: reviewer.email, password: "password")
+
+      authenticated_request(:get, "/api/expenses?q=air", cookie: cookie)
+
+      expect(response).to have_http_status(:ok)
+      ids = json_response.fetch("data").map { |row| row.fetch("id") }
+      expect(ids).to contain_exactly(employee_expense.id)
+
+      authenticated_request(:get, "/api/expenses?q=lunch", cookie: cookie)
+
+      expect(response).to have_http_status(:ok)
+      ids = json_response.fetch("data").map { |row| row.fetch("id") }
+      expect(ids).to contain_exactly(other_expense.id)
+    end
   end
 
   describe "GET /api/expenses/:id" do

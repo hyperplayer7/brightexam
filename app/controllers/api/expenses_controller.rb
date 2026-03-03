@@ -19,6 +19,11 @@ module Api
         expenses_scope = expenses_scope.where(category_id: params[:category_id])
       end
 
+      if params[:q].present?
+        query = "%#{ActiveRecord::Base.sanitize_sql_like(params[:q].to_s.strip)}%"
+        expenses_scope = expenses_scope.where("merchant ILIKE :query OR description ILIKE :query", query: query)
+      end
+
       @pagy, expenses = pagy(expenses_scope, limit: 5)
 
       render json: {

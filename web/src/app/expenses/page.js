@@ -50,6 +50,7 @@ export default function ExpensesPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
+  const normalizedSearchTerm = searchTerm.trim();
 
   useEffect(() => {
     let cancelled = false;
@@ -66,6 +67,7 @@ export default function ExpensesPage() {
           listExpenses({
             status: normalizedStatus === "all" || normalizedStatus === "" ? undefined : normalizedStatus,
             category_id: categoryFilter === "all" ? undefined : categoryFilter,
+            q: normalizedSearchTerm || undefined,
             page
           }),
           listCategories()
@@ -109,7 +111,7 @@ export default function ExpensesPage() {
     return () => {
       cancelled = true;
     };
-  }, [categoryFilter, page, router, statusFilter]);
+  }, [categoryFilter, normalizedSearchTerm, page, router, statusFilter]);
 
   function handleStatusChange(event) {
     setStatusFilter(event.target.value);
@@ -131,17 +133,26 @@ export default function ExpensesPage() {
     setPage(1);
   }
 
-  const normalizedSearchTerm = searchTerm.trim().toLowerCase();
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const currentMonthTotals = (summary?.monthly || []).filter((entry) => entry.month === currentMonth);
-  const filteredExpenses = expenses.filter((expense) => {
-    if (!normalizedSearchTerm) return true;
 
-    const merchant = (expense?.merchant || "").toLowerCase();
-    const description = (expense?.description || "").toLowerCase();
-    return merchant.includes(normalizedSearchTerm) || description.includes(normalizedSearchTerm);
-  });
+  function shouldSkipRowClick(eventTarget) {
+    if (!(eventTarget instanceof HTMLElement)) return false;
+    return Boolean(eventTarget.closest("a,button,input,select,textarea,[role='button']"));
+  }
+
+  function handleRowClick(event, expenseId) {
+    if (shouldSkipRowClick(event.target)) return;
+    router.push(`/expenses/${expenseId}`);
+  }
+
+  function handleRowKeyDown(event, expenseId) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    if (shouldSkipRowClick(event.target)) return;
+    event.preventDefault();
+    router.push(`/expenses/${expenseId}`);
+  }
 
   return (
     <div className="space-y-6">
@@ -161,7 +172,6 @@ export default function ExpensesPage() {
                   <label htmlFor="search" className="text-sm font-medium text-text">
                     Search
                   </label>
-                  <span className="text-[11px] text-muted">current page only</span>
                 </div>
                 <Input
                   id="search"
@@ -293,8 +303,15 @@ export default function ExpensesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
-              {filteredExpenses.map((expense) => (
-                <tr key={expense.id} className="hover:bg-accent/20">
+              {expenses.map((expense) => (
+                <tr
+                  key={expense.id}
+                  role="link"
+                  tabIndex={0}
+                  onClick={(event) => handleRowClick(event, expense.id)}
+                  onKeyDown={(event) => handleRowKeyDown(event, expense.id)}
+                  className="cursor-pointer transition-colors hover:bg-accent/20 focus-visible:bg-accent/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary active:bg-accent/30"
+                >
                   <td className="px-4 py-3 text-text">
                     {expense.merchant || "-"}
                   </td>
@@ -311,12 +328,20 @@ export default function ExpensesPage() {
                   <td className="px-4 py-3">
                     <Badge status={expense.status}>{expense.status}</Badge>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3" onClick={(event) => event.stopPropagation()}>
                     <div className="flex gap-2">
-                      <Link className="font-medium text-primary hover:text-primary/80" href={`/expenses/${expense.id}`}>
+                      <Link
+                        className="font-medium text-primary hover:text-primary/80"
+                        href={`/expenses/${expense.id}`}
+                        onClick={(event) => event.stopPropagation()}
+                      >
                         View
                       </Link>
-                      <Link className="font-medium text-text hover:text-muted" href={`/expenses/${expense.id}#audit`}>
+                      <Link
+                        className="font-medium text-text hover:text-muted"
+                        href={`/expenses/${expense.id}#audit-logs`}
+                        onClick={(event) => event.stopPropagation()}
+                      >
                         Audit Logs
                       </Link>
                     </div>
@@ -324,10 +349,10 @@ export default function ExpensesPage() {
                 </tr>
               ))}
 
-              {filteredExpenses.length === 0 ? (
+              {expenses.length === 0 ? (
                 <tr>
                   <td className="px-4 py-6 text-center text-muted" colSpan={7}>
-                    {searchTerm ? "No expenses match your search on this page." : "No expenses found."}
+                    {searchTerm ? "No expenses match your search." : "No expenses found."}
                   </td>
                 </tr>
               ) : null}

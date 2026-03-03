@@ -11,6 +11,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("employee@test.com");
   const [password, setPassword] = useState("password");
   const [error, setError] = useState("");
+  const [checkingSession, setCheckingSession] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -20,10 +21,14 @@ export default function LoginPage() {
       try {
         await me();
         if (!cancelled) {
-          router.push("/expenses");
+          router.replace("/expenses");
         }
       } catch (_err) {
         // No active session, stay on login page.
+      } finally {
+        if (!cancelled) {
+          setCheckingSession(false);
+        }
       }
     }
 
@@ -47,6 +52,14 @@ export default function LoginPage() {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  if (checkingSession) {
+    return (
+      <div className="mx-auto max-w-md rounded-xl border border-border bg-surface p-6 shadow-sm">
+        <p className="text-sm text-muted">Checking session...</p>
+      </div>
+    );
   }
 
   return (

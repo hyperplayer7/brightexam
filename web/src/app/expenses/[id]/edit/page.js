@@ -25,6 +25,7 @@ export default function EditExpensePage() {
   const params = useParams();
   const router = useRouter();
   const expenseId = params.id;
+  const today = new Date().toISOString().slice(0, 10);
 
   const [user, setUser] = useState(null);
   const [expense, setExpense] = useState(null);
@@ -37,6 +38,8 @@ export default function EditExpensePage() {
     incurred_on: "",
     category_id: ""
   });
+  const [amountError, setAmountError] = useState("");
+  const [incurredOnError, setIncurredOnError] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -94,9 +97,42 @@ export default function EditExpensePage() {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
+  function validateAmount(value) {
+    const parsed = Number.parseFloat(value);
+    if (!value || !Number.isFinite(parsed) || parsed <= 0) {
+      return "Amount must be greater than 0.";
+    }
+    return "";
+  }
+
+  function validateIncurredOn(value) {
+    if (!value) return "Please select an incurred date.";
+    if (value > today) return "Incurred date cannot be in the future.";
+    return "";
+  }
+
+  function handleAmountChange(event) {
+    const value = event.target.value;
+    setField("amount", value);
+    setAmountError(validateAmount(value));
+  }
+
+  function handleIncurredOnChange(event) {
+    const value = event.target.value;
+    setField("incurred_on", value);
+    setIncurredOnError(validateIncurredOn(value));
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
     setError("");
+
+    const nextAmountError = validateAmount(form.amount);
+    const nextIncurredOnError = validateIncurredOn(form.incurred_on);
+    setAmountError(nextAmountError);
+    setIncurredOnError(nextIncurredOnError);
+
+    if (nextAmountError || nextIncurredOnError) return;
 
     const amount_cents = toCents(form.amount);
     if (!amount_cents) {
@@ -165,11 +201,12 @@ export default function EditExpensePage() {
               label="Amount"
               type="number"
               step="0.01"
-              min="0"
+              min="0.01"
               required
               value={form.amount}
-              onChange={(event) => setField("amount", event.target.value)}
+              onChange={handleAmountChange}
             />
+            {amountError ? <p className="text-sm font-medium text-badge-rejected-foreground">{amountError}</p> : null}
 
             <Input as="select" id="currency" label="Currency" required value={form.currency} onChange={(event) => setField("currency", event.target.value)}>
               {CURRENCY_OPTIONS.map((currency) => (
@@ -216,10 +253,15 @@ export default function EditExpensePage() {
               type="date"
               required
               value={form.incurred_on}
-              onChange={(event) => setField("incurred_on", event.target.value)}
+              max={today}
+              onChange={handleIncurredOnChange}
             />
+            {incurredOnError ? <p className="text-sm font-medium text-badge-rejected-foreground">{incurredOnError}</p> : null}
 
-            <Button type="submit" disabled={saving}>
+            <Button
+              type="submit"
+              disabled={saving || Boolean(validateAmount(form.amount)) || Boolean(validateIncurredOn(form.incurred_on))}
+            >
               {saving ? "Saving..." : "Save changes"}
             </Button>
           </form>
