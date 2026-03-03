@@ -67,6 +67,13 @@ Transition rules (backend-enforced):
 - `approve`: reviewer + expense is `submitted`
 - `reject`: reviewer + expense is `submitted` + rejection reason required
 
+## State Management
+
+The workflow state is currently implemented with a Rails `enum` on `Expense` plus small service objects for transitions.
+This keeps the current state machine logic explicit and lightweight for the existing flow.
+`AASM` is intentionally not used right now to avoid extra dependency and configuration overhead.
+If the workflow adds more states, guards, or callbacks, introducing `AASM` can be a reasonable next step.
+
 ## Setup (Verified Against Current App)
 
 ### Backend (Rails API)

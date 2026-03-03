@@ -8,13 +8,8 @@ import Input from "../../components/Input";
 import TopNav from "../../components/TopNav";
 import { isForbiddenError, isUnauthorizedError, requireCurrentUser } from "../../lib/auth";
 import { createCategory, listCategories } from "../../lib/api";
-
-function formatDateTime(value) {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString();
-}
+import { withLoading } from "../../utils/api";
+import { formatDateTime } from "../../utils/date";
 
 function parseValidationError(error) {
   if (!error) return "Unable to create category.";
@@ -63,22 +58,27 @@ export default function CategoriesPage() {
     let cancelled = false;
 
     async function loadData() {
+      const setLoadingSafe = (value) => {
+        if (!cancelled) setLoading(value);
+      };
+
       try {
-        setLoading(true);
-        setError("");
-        setForbidden(false);
+        await withLoading(setLoadingSafe, async () => {
+          setError("");
+          setForbidden(false);
 
-        const currentUser = await requireCurrentUser();
-        let categoriesResponse = null;
+          const currentUser = await requireCurrentUser();
+          let categoriesResponse = null;
 
-        if (currentUser?.role === "reviewer") {
-          categoriesResponse = await listCategories();
-        }
+          if (currentUser?.role === "reviewer") {
+            categoriesResponse = await listCategories();
+          }
 
-        if (!cancelled) {
-          setUser(currentUser);
-          setCategories(categoriesResponse?.data || []);
-        }
+          if (!cancelled) {
+            setUser(currentUser);
+            setCategories(categoriesResponse?.data || []);
+          }
+        });
       } catch (err) {
         if (cancelled) return;
 
@@ -92,10 +92,6 @@ export default function CategoriesPage() {
         }
 
         setError(err.message || "Failed to load categories.");
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
       }
     }
 

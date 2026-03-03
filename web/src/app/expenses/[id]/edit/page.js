@@ -8,6 +8,7 @@ import Input from "../../../../components/Input";
 import TopNav from "../../../../components/TopNav";
 import { getCurrentUser } from "../../../../lib/auth";
 import { getExpense, listCategories, updateExpense } from "../../../../lib/api";
+import { withLoading } from "../../../../utils/api";
 
 const CURRENCY_OPTIONS = ["PHP", "USD"];
 
@@ -48,28 +49,33 @@ export default function EditExpensePage() {
     let cancelled = false;
 
     async function loadData() {
+      const setLoadingSafe = (value) => {
+        if (!cancelled) setLoading(value);
+      };
+
       try {
-        setLoading(true);
-        setError("");
-        const [currentUser, expenseResponse, categoriesResponse] = await Promise.all([
-          getCurrentUser(),
-          getExpense(expenseId),
-          listCategories()
-        ]);
+        await withLoading(setLoadingSafe, async () => {
+          setError("");
+          const [currentUser, expenseResponse, categoriesResponse] = await Promise.all([
+            getCurrentUser(),
+            getExpense(expenseId),
+            listCategories()
+          ]);
 
-        if (cancelled) return;
+          if (cancelled) return;
 
-        const data = expenseResponse?.data;
-        setUser(currentUser);
-        setExpense(data);
-        setCategories(categoriesResponse?.data || []);
-        setForm({
-          amount: toAmount(data.amount_cents),
-          currency: data.currency || "PHP",
-          merchant: data.merchant || "",
-          description: data.description || "",
-          incurred_on: data.incurred_on || "",
-          category_id: data?.category?.id ? String(data.category.id) : ""
+          const data = expenseResponse?.data;
+          setUser(currentUser);
+          setExpense(data);
+          setCategories(categoriesResponse?.data || []);
+          setForm({
+            amount: toAmount(data.amount_cents),
+            currency: data.currency || "PHP",
+            merchant: data.merchant || "",
+            description: data.description || "",
+            incurred_on: data.incurred_on || "",
+            category_id: data?.category?.id ? String(data.category.id) : ""
+          });
         });
       } catch (err) {
         if (!cancelled) {
@@ -78,10 +84,6 @@ export default function EditExpensePage() {
             return;
           }
           setError(err.message);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
         }
       }
     }

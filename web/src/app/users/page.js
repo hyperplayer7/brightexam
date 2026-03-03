@@ -8,15 +8,10 @@ import Input from "../../components/Input";
 import TopNav from "../../components/TopNav";
 import { isForbiddenError, isUnauthorizedError, requireCurrentUser } from "../../lib/auth";
 import { listUsers, updateUserRole } from "../../lib/api";
+import { withLoading } from "../../utils/api";
+import { formatDateTime } from "../../utils/date";
 
 const ROLE_OPTIONS = ["employee", "reviewer"];
-
-function formatDateTime(value) {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString();
-}
 
 function parseErrorMessage(error, fallback) {
   if (!error) return fallback;
@@ -48,33 +43,38 @@ export default function UsersPage() {
     let cancelled = false;
 
     async function loadData() {
-      try {
-        setLoading(true);
-        setError("");
-        setForbidden(false);
+      const setLoadingSafe = (value) => {
+        if (!cancelled) setLoading(value);
+      };
 
-        const currentUser = await requireCurrentUser();
-        if (currentUser?.role !== "reviewer") {
+      try {
+        await withLoading(setLoadingSafe, async () => {
+          setError("");
+          setForbidden(false);
+
+          const currentUser = await requireCurrentUser();
+          if (currentUser?.role !== "reviewer") {
+            if (!cancelled) {
+              setUser(currentUser);
+              setUsers([]);
+            }
+            return;
+          }
+
+          const response = await listUsers();
+          const rows = response?.data || [];
+
           if (!cancelled) {
             setUser(currentUser);
-            setUsers([]);
+            setUsers(rows);
+            setDraftRoles(
+              rows.reduce((acc, row) => {
+                acc[row.id] = row.role;
+                return acc;
+              }, {})
+            );
           }
-          return;
-        }
-
-        const response = await listUsers();
-        const rows = response?.data || [];
-
-        if (!cancelled) {
-          setUser(currentUser);
-          setUsers(rows);
-          setDraftRoles(
-            rows.reduce((acc, row) => {
-              acc[row.id] = row.role;
-              return acc;
-            }, {})
-          );
-        }
+        });
       } catch (err) {
         if (cancelled) return;
         if (isUnauthorizedError(err)) {
@@ -86,10 +86,6 @@ export default function UsersPage() {
           return;
         }
         setError(err.message || "Failed to load users.");
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
       }
     }
 

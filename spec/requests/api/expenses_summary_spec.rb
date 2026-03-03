@@ -110,5 +110,22 @@ RSpec.describe "Expenses summary", type: :request do
       expect(json["data"]["by_status"]).to be_an(Array)
       expect(json["data"]["monthly"]).to be_an(Array)
     end
+
+    it "returns by_status with stable shape and counts" do
+      login_as(email: reviewer.email, password: "password")
+
+      get "/api/expenses/summary"
+
+      expect(response).to have_http_status(:ok)
+      by_status = json.dig("data", "by_status")
+      expect(by_status).to eq(
+        [
+          { "status" => "drafted", "count" => 0 },
+          { "status" => "submitted", "count" => 1 },
+          { "status" => "approved", "count" => 1 },
+          { "status" => "rejected", "count" => 0 }
+        ]
+      )
+    end
   end
 end

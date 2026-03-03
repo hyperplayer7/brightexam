@@ -8,6 +8,8 @@ import Button from "../../../components/Button";
 import Input from "../../../components/Input";
 import TopNav from "../../../components/TopNav";
 import { getCurrentUser } from "../../../lib/auth";
+import { withLoading } from "../../../utils/api";
+import { formatDateTime } from "../../../utils/date";
 import {
   approveExpense,
   deleteExpense,
@@ -16,13 +18,6 @@ import {
   rejectExpense,
   submitExpense
 } from "../../../lib/api";
-
-function formatDate(value) {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString();
-}
 
 function formatCurrencyAmount(currency, amountCents) {
   const amount = Number(amountCents || 0) / 100;
@@ -111,36 +106,34 @@ export default function ExpenseDetailPage() {
 
   async function loadExpense() {
     try {
-      setLoading(true);
-      setError("");
-      const [currentUser, expenseResponse] = await Promise.all([getCurrentUser(), getExpense(expenseId)]);
-      setUser(currentUser);
-      setExpense(expenseResponse?.data || null);
+      await withLoading(setLoading, async () => {
+        setError("");
+        const [currentUser, expenseResponse] = await Promise.all([getCurrentUser(), getExpense(expenseId)]);
+        setUser(currentUser);
+        setExpense(expenseResponse?.data || null);
+      });
     } catch (err) {
       if (err.status === 401) {
         router.push("/login");
         return;
       }
       setError(err.message);
-    } finally {
-      setLoading(false);
     }
   }
 
   async function loadAuditLogs() {
     try {
-      setAuditLoading(true);
-      setAuditError("");
-      const response = await getExpenseAuditLogs(expenseId);
-      setAuditLogs(response?.data || []);
+      await withLoading(setAuditLoading, async () => {
+        setAuditError("");
+        const response = await getExpenseAuditLogs(expenseId);
+        setAuditLogs(response?.data || []);
+      });
     } catch (err) {
       if (err.status === 401) {
         router.push("/login");
         return;
       }
       setAuditError(err.message);
-    } finally {
-      setAuditLoading(false);
     }
   }
 
@@ -265,8 +258,8 @@ export default function ExpenseDetailPage() {
               <p><span className="font-semibold">Amount:</span> {expense.currency} {(expense.amount_cents / 100).toFixed(2)}</p>
               <p><span className="font-semibold">Incurred on:</span> {expense.incurred_on}</p>
               <p><span className="font-semibold">Status:</span> <Badge status={expense.status}>{expense.status}</Badge></p>
-              <p><span className="font-semibold">Submitted at:</span> {formatDate(expense.submitted_at)}</p>
-              <p><span className="font-semibold">Reviewed at:</span> {formatDate(expense.reviewed_at)}</p>
+              <p><span className="font-semibold">Submitted at:</span> {formatDateTime(expense.submitted_at)}</p>
+              <p><span className="font-semibold">Reviewed at:</span> {formatDateTime(expense.reviewed_at)}</p>
             </div>
             <p className="text-sm text-text"><span className="font-semibold">Description:</span> {expense.description}</p>
             {expense.rejection_reason ? (
@@ -328,7 +321,7 @@ export default function ExpenseDetailPage() {
               .map((log) => (
               <div key={log.id} className="rounded-lg border border-border p-3">
                 <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-muted">
-                  <span>{formatDate(log.created_at)}</span>
+                  <span>{formatDateTime(log.created_at)}</span>
                   <span className="rounded bg-accent/30 px-2 py-1 font-semibold text-text">{log.action}</span>
                   <span>
                     Actor: {log.actor?.email || "-"} ({log.actor?.role || "-"})

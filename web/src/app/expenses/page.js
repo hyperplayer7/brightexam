@@ -10,13 +10,8 @@ import Input from "../../components/Input";
 import TopNav from "../../components/TopNav";
 import { isForbiddenError, isUnauthorizedError, requireCurrentUser } from "../../lib/auth";
 import { getExpensesSummary, listCategories, listExpenses } from "../../lib/api";
-
-function formatDate(value) {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString();
-}
+import { withLoading } from "../../utils/api";
+import { formatDate } from "../../utils/date";
 
 function formatCount(value) {
   return new Intl.NumberFormat("en-US").format(Number(value || 0));
@@ -56,37 +51,42 @@ export default function ExpensesPage() {
     let cancelled = false;
 
     async function loadData() {
+      const setLoadingSafe = (value) => {
+        if (!cancelled) setLoading(value);
+      };
+
       try {
-        setLoading(true);
-        setError("");
-        setForbidden(false);
-        const normalizedStatus = statusFilter?.trim?.() || "";
+        await withLoading(setLoadingSafe, async () => {
+          setError("");
+          setForbidden(false);
+          const normalizedStatus = statusFilter?.trim?.() || "";
 
-        const [currentUser, expenseResponse, categoriesResponse] = await Promise.all([
-          requireCurrentUser(),
-          listExpenses({
-            status: normalizedStatus === "all" || normalizedStatus === "" ? undefined : normalizedStatus,
-            category_id: categoryFilter === "all" ? undefined : categoryFilter,
-            q: normalizedSearchTerm || undefined,
-            page
-          }),
-          listCategories()
-        ]);
+          const [currentUser, expenseResponse, categoriesResponse] = await Promise.all([
+            requireCurrentUser(),
+            listExpenses({
+              status: normalizedStatus === "all" || normalizedStatus === "" ? undefined : normalizedStatus,
+              category_id: categoryFilter === "all" ? undefined : categoryFilter,
+              q: normalizedSearchTerm || undefined,
+              page
+            }),
+            listCategories()
+          ]);
 
-        let summaryResponse = null;
-        try {
-          summaryResponse = await getExpensesSummary();
-        } catch (_summaryError) {
-          summaryResponse = null;
-        }
+          let summaryResponse = null;
+          try {
+            summaryResponse = await getExpensesSummary();
+          } catch (_summaryError) {
+            summaryResponse = null;
+          }
 
-        if (!cancelled) {
-          setUser(currentUser);
-          setExpenses(expenseResponse?.data || []);
-          setCategories(categoriesResponse?.data || []);
-          setSummary(summaryResponse?.data || null);
-          setPagination(expenseResponse?.pagination || null);
-        }
+          if (!cancelled) {
+            setUser(currentUser);
+            setExpenses(expenseResponse?.data || []);
+            setCategories(categoriesResponse?.data || []);
+            setSummary(summaryResponse?.data || null);
+            setPagination(expenseResponse?.pagination || null);
+          }
+        });
       } catch (err) {
         if (!cancelled) {
           if (isUnauthorizedError(err)) {
@@ -98,10 +98,6 @@ export default function ExpensesPage() {
             return;
           }
           setError(err.message);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
         }
       }
     }

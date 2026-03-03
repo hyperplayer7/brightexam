@@ -27,7 +27,7 @@ module Api
       @pagy, expenses = pagy(expenses_scope, limit: 5)
 
       render json: {
-        data: expenses.map { |expense| expense_payload(expense) },
+        data: ExpenseSerializer.collection(expenses),
         pagination: {
           page: @pagy.page,
           pages: @pagy.pages,
@@ -39,7 +39,7 @@ module Api
 
     def show
       authorize @expense
-      render json: { data: expense_payload(@expense) }
+      render json: { data: ExpenseSerializer.new(@expense).serializable_hash }
     end
 
     def summary
@@ -66,6 +66,13 @@ module Api
           amount_cents: amount_cents.to_i
         }
       end.sort_by { |entry| [ entry[:month], entry[:currency] ] }
+      counts_by_status = expenses_scope.group(:status).count.transform_keys(&:to_s)
+      by_status = Expense.statuses.keys.map do |status|
+        {
+          status: status,
+          count: counts_by_status.fetch(status, 0)
+        }
+      end
 
       render json: {
         data: {
@@ -75,12 +82,7 @@ module Api
               .sort_by { |currency, _amount_cents| currency.to_s }
               .map { |currency, amount_cents| { currency: currency, amount_cents: amount_cents.to_i } }
           },
-          by_status: Expense.statuses.keys.map do |status|
-            {
-              status: status,
-              count: expenses_scope.where(status: status).count
-            }
-          end,
+          by_status: by_status,
           monthly: monthly
         }
       }
@@ -97,7 +99,7 @@ module Api
           action: "expense.created",
           to_status: expense.status
         )
-        render json: { data: expense_payload(expense) }, status: :created
+        render json: { data: ExpenseSerializer.new(expense).serializable_hash }, status: :created
       else
         render json: { errors: expense.errors.full_messages }, status: :unprocessable_entity
       end
@@ -118,7 +120,7 @@ module Api
             previous_changes: @expense.previous_changes
           }
         )
-        render json: { data: expense_payload(@expense) }, status: :ok
+        render json: { data: ExpenseSerializer.new(@expense).serializable_hash }, status: :ok
       else
         render json: { errors: @expense.errors.full_messages }, status: :unprocessable_entity
       end
@@ -150,7 +152,7 @@ module Api
         from_status: from_status,
         to_status: expense.status
       )
-      render json: { data: expense_payload(expense) }, status: :ok
+      render json: { data: ExpenseSerializer.new(expense).serializable_hash }, status: :ok
     end
 
     def approve
@@ -164,7 +166,7 @@ module Api
         from_status: from_status,
         to_status: expense.status
       )
-      render json: { data: expense_payload(expense) }, status: :ok
+      render json: { data: ExpenseSerializer.new(expense).serializable_hash }, status: :ok
     end
 
     def reject
@@ -185,7 +187,7 @@ module Api
           rejection_reason: expense.rejection_reason
         }
       )
-      render json: { data: expense_payload(expense) }, status: :ok
+      render json: { data: ExpenseSerializer.new(expense).serializable_hash }, status: :ok
     end
 
     def audit_logs
@@ -211,44 +213,6 @@ module Api
         :category_id,
         :lock_version
       )
-    end
-
-    def expense_payload(expense)
-      {
-        id: expense.id,
-        user_id: expense.user_id,
-        reviewer_id: expense.reviewer_id,
-        user: user_payload(expense.user),
-        reviewer: expense.reviewer ? user_payload(expense.reviewer) : nil,
-        category: expense.category ? category_payload(expense.category) : nil,
-        amount_cents: expense.amount_cents,
-        currency: expense.currency,
-        description: expense.description,
-        merchant: expense.merchant,
-        incurred_on: expense.incurred_on,
-        status: expense.status,
-        submitted_at: expense.submitted_at,
-        reviewed_at: expense.reviewed_at,
-        rejection_reason: expense.rejection_reason,
-        lock_version: expense.lock_version,
-        created_at: expense.created_at,
-        updated_at: expense.updated_at
-      }
-    end
-
-    def user_payload(user)
-      {
-        id: user.id,
-        email: user.email,
-        role: user.role
-      }
-    end
-
-    def category_payload(category)
-      {
-        id: category.id,
-        name: category.name
-      }
     end
 
     def audit_log_payload(log)
